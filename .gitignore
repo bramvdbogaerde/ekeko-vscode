@@ -1,0 +1,28 @@
+# Node / VS Code extension
+node_modules/
+out/
+dist/
+*.vsix
+.vscode-test/
+
+# Java / OSGi bundle build
+target/
+build/
+bin/
+*.class
+.gradle/
+.settings/
+.classpath
+.project
+
+# Clojure
+.cpcache/
+.nrepl-port
+
+# Spike / scratch
+spike/target/
+spike/build/
+
+# Editor / OS
+.DS_Store
+*.log
