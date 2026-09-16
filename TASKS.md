@@ -20,14 +20,33 @@ checked-off task, per GOAL.md's process requirements.
 - [x] Decision gate: **mechanical port confirmed** — `damp.ekeko.jdt.*`
       needs only the `AST.JLS8` → `AST.getJLSLatest()` edit, no rewrite
 
-## Phase 1 — Vendor and adapt the Ekeko query engine as an OSGi bundle
+## Phase 1 — Adapt the Ekeko query engine + build the jdt.ls OSGi bundle
 
-- [ ] Vendor-copy and adapt source files
-- [ ] New bundle skeleton (MANIFEST, Clojure/core.logic on classpath)
-- [ ] `EkekoModelListener` (IResourceChangeListener) replacing `EkekoBuilder`
-- [ ] Standalone (non-Tycho) build producing the bundle jar
-- [ ] Verify: load into test jdt.ls instance, run a basic query against a
-      real project
+**Architecture correction (see `/home/bram/ekeko/GOAL.md`'s "Modifications to
+damp.ekeko" section):** rather than vendor-copying `damp.ekeko` source into
+this repo, the query-engine-side adaptations happen as real commits directly
+in `damp.ekeko` (contributable upstream), and the jdt.ls-specific bundle
+glue lives in a new `damp.ekeko/damp.ekeko.jdtls/` directory inside that
+repo instead — building against/reusing `damp.ekeko.plugin`'s source
+directly (single source of truth). This repo (`ekeko-vscode/`) is the VS
+Code extension (TypeScript) only.
+
+- [x] Adapt `damp.ekeko.plugin` so its query engine loads without an
+      Eclipse workbench (EkekoLog facade, reflective JLS-level resolution,
+      PROCESSERRORS_PROPERTY relocation, Clojure 1.12.6/core.logic 1.1.1
+      bump, Barista glue extraction, deferred gui/dropped forced Soot
+      `:use`) — 6 commits in `damp.ekeko`, verified by loading every
+      `damp.ekeko.jdt.*` namespace + `damp.ekeko` itself and running a
+      trivial query through the `ekeko` macro
+- [ ] Create `damp.ekeko/damp.ekeko.jdtls/` bundle skeleton (MANIFEST,
+      plugin.xml, build tooling — not Tycho/Neon-targeted)
+- [ ] Bundle activator: auto-enable the Ekeko nature (`Natures.addNature`)
+      on open Java projects so the existing `EkekoNature`→`EkekoBuilder`
+      wiring drives model population via jdt.ls's normal build lifecycle,
+      no custom `IResourceChangeListener` needed unless that doesn't pan
+      out in practice — validate this empirically
+- [ ] Verify: load into a real jdt.ls instance (via VSCodium + redhat.java),
+      run a basic query against a real project
 
 ## Phase 2 — VS Code extension shell + bundle wiring + delegate commands
 
