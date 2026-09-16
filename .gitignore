@@ -22,6 +22,8 @@ bin/
 # Spike / scratch
 spike/target/
 spike/build/
+spike/classes/
+spike/lib/
 
 # Editor / OS
 .DS_Store

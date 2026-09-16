@@ -7,12 +7,18 @@ checked-off task, per GOAL.md's process requirements.
 ## Phase 0 — Bootstrap + JDT compatibility spike
 
 - [x] `git init` new repo, `.gitignore`, skeleton `README.md`
-- [ ] Build `eclipse.jdt.ls` locally, obtain JDT core jars
-- [ ] Install VS Code + redhat.java on Gnome desktop, baseline sanity check
-- [ ] Identify current `AST.JLS*` constant in the built JDT core jar
-- [ ] Spike: minimal bundle exercising `JavaProjectModel.parse` + a few
-      relations against the newer JDT core
-- [ ] Decision gate: mechanical port vs. rewrite scope for `damp.ekeko.jdt.*`
+- [x] Build `eclipse.jdt.ls` locally, obtain JDT core jars
+- [x] Install VSCodium + redhat.java + Calva on Gnome desktop, baseline
+      sanity check (sample project imports, reconciles, compiles cleanly)
+- [x] Identify current `AST.JLS*` constant in the JDT core jar redhat.java
+      actually bundles (`AST.getJLSLatest()`, `JLS_Latest = 26`)
+- [x] Spike: minimal driver exercising `JavaProjectModel.parse`'s call shape
+      plus representative `damp.ekeko.jdt.*` relation patterns (instanceof
+      dispatch, binding resolution, structural property reflection,
+      parent/child traversal, start/length) against that JDT core jar — all
+      18 checks passed, see `spike/FINDINGS.md`
+- [x] Decision gate: **mechanical port confirmed** — `damp.ekeko.jdt.*`
+      needs only the `AST.JLS8` → `AST.getJLSLatest()` edit, no rewrite
 
 ## Phase 1 — Vendor and adapt the Ekeko query engine as an OSGi bundle
 
