@@ -38,15 +38,24 @@ Code extension (TypeScript) only.
       `:use`) — 6 commits in `damp.ekeko`, verified by loading every
       `damp.ekeko.jdt.*` namespace + `damp.ekeko` itself and running a
       trivial query through the `ekeko` macro
-- [ ] Create `damp.ekeko/damp.ekeko.jdtls/` bundle skeleton (MANIFEST,
-      plugin.xml, build tooling — not Tycho/Neon-targeted)
-- [ ] Bundle activator: auto-enable the Ekeko nature (`Natures.addNature`)
-      on open Java projects so the existing `EkekoNature`→`EkekoBuilder`
-      wiring drives model population via jdt.ls's normal build lifecycle,
-      no custom `IResourceChangeListener` needed unless that doesn't pan
-      out in practice — validate this empirically
-- [ ] Verify: load into a real jdt.ls instance (via VSCodium + redhat.java),
-      run a basic query against a real project
+- [x] Create `damp.ekeko/damp.ekeko.jdtls/` bundle (Maven + maven-bundle-plugin
+      generating the OSGi manifest, not hand-written; not Tycho/Neon-targeted —
+      see `damp.ekeko.jdtls/README.md`)
+- [x] Bundle activator (`EkekoJdtlsActivator`): auto-enables the Ekeko nature
+      (`Natures.addNature`) on open Java projects so the existing
+      `EkekoNature`→`EkekoBuilder` wiring drives model population via
+      jdt.ls's normal build lifecycle — no custom `IResourceChangeListener`
+      rebuild trigger needed, just a short delayed retry job for the
+      startup race against jdt.ls's own project import
+- [x] Verify: built the jar, installed it into a real jdt.ls Standard server
+      (VSCodium + redhat.java, via a scratch extension contributing the jar
+      through `contributes.javaExtensions`) against a sample Java project.
+      Confirmed via the Java Language Server output channel: bundle
+      installs and starts, `EkekoJdtlsActivator` runs, nature gets enabled,
+      and `EkekoModel.populate()` runs ("Populating Ekeko project models
+      for queried projects."). Running an actual Ekeko query end-to-end
+      needs a command entry point, which is Phase 2's delegate command
+      handler — not yet exercised.
 
 ## Phase 2 — VS Code extension shell + bundle wiring + delegate commands
 
