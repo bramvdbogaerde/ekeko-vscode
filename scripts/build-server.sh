@@ -34,3 +34,19 @@ fi
 mkdir -p "$SERVER_DIR"
 cp "$BUILT_JAR" "$SERVER_DIR/damp.ekeko.jdtls.jar"
 echo "Copied $(basename "$BUILT_JAR") to $SERVER_DIR/damp.ekeko.jdtls.jar"
+
+# Plain (non-nested-in-a-jar) copies of core.logic/qwal, whose macros
+# damp.ekeko's own macros expand into -- staged separately from the OSGi
+# bundle jar above (which only embeds them as nested jars on its own
+# Bundle-ClassPath) so clj-kondo/clojure-lsp can point a :classpath at
+# real files and resolve Ekeko/core.logic symbols for autocomplete and
+# diagnostics (src/lsp.ts writes .lsp/config.edn pointing here).
+LINT_LIBS_DIR="$JDTLS_BUNDLE_DIR/target/lint-libs"
+if [ -d "$LINT_LIBS_DIR" ]; then
+  rm -rf "$SERVER_DIR/lint-libs"
+  mkdir -p "$SERVER_DIR/lint-libs"
+  cp "$LINT_LIBS_DIR"/*.jar "$SERVER_DIR/lint-libs/"
+  echo "Copied $(ls "$LINT_LIBS_DIR"/*.jar | wc -l) lint-classpath jar(s) to $SERVER_DIR/lint-libs/"
+else
+  echo "Warning: $LINT_LIBS_DIR not found; clj-kondo/clojure-lsp classpath setup will be incomplete." >&2
+fi

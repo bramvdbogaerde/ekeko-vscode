@@ -97,18 +97,54 @@ This extension isn't published to the Marketplace; install it from a built
    functions and vars it defines become callable from the REPL immediately
    afterward. No Ekeko-specific "load script" command is needed for this;
    Calva already covers it for any Clojure file.
+6. **Autocomplete and diagnostics for Ekeko symbols in Calva.** The first
+   time a Java file is opened, Ekeko writes a `.lsp/config.edn` into the
+   workspace pointing `clojure-lsp` (which powers Calva's autocomplete and
+   red-squiggle diagnostics) at Ekeko's own `.clj` source and its
+   `core.logic`/`qwal` dependencies, none of which are otherwise
+   discoverable from a plain Java project (no `deps.edn`/`project.clj`
+   names them). A one-time "Restart Clojure LSP" prompt appears after
+   that file is written — accept it (or run **Calva: Restart Clojure LSP**
+   yourself later) to pick it up; if symbols still don't resolve
+   immediately afterward, running that restart command a second time
+   clears it up (`clojure-lsp` occasionally needs an extra cache refresh
+   on the very first setup).
+
+   For this to work, write scripts with an explicit `ns` form rather than
+   the `(in-ns 'damp.ekeko)` shorthand shown above: `in-ns` switches
+   namespaces at *runtime*, which clj-kondo (a static analyzer) can't
+   follow, so symbols brought in that way still show as unresolved even
+   though they work fine at the REPL. Prefer:
+   ```clojure
+   (ns my-script
+     (:require [damp.ekeko :refer :all]
+               [damp.ekeko.jdt.ast :refer :all]))
+
+   (ekeko [?m] (ast :MethodDeclaration ?m))
+   ```
+   Add further `damp.ekeko.jdt.*` namespaces (`structure`, `aststructure`,
+   `convenience`, `rewrites`) the same way for the relations they define
+   (`has`, `child`, and friends). Logic variables (`?m` above) still show
+   as unresolved regardless — clj-kondo doesn't know `core.logic`'s
+   `fresh`/`ekeko` binds them — that's a purely cosmetic, safe-to-ignore
+   warning.
 
 ## Architecture
 
 - `src/` — the VS Code extension itself (TypeScript): activation and
   commands (`extension.ts`), REPL start/stop + `.nrepl-port` writing +
-  Calva wiring (`repl.ts`), the query-input command (`queryRunner.ts`), and
-  the results view (`resultsPanel.ts` + `media/results.{js,css}`, a
-  `WebviewViewProvider` docked in the bottom Panel area).
+  Calva wiring (`repl.ts`), the query-input command (`queryRunner.ts`), the
+  results view (`resultsPanel.ts` + `media/results.{js,css}`, a
+  `WebviewViewProvider` docked in the bottom Panel area), and the
+  `.lsp/config.edn` classpath setup for Calva's autocomplete/diagnostics
+  (`lsp.ts`; see "Autocomplete and diagnostics" above).
 - `server/` — where the built jdt.ls-side OSGi bundle jar
-  (`damp.ekeko.jdtls.jar`) is staged for packaging; not committed here (see
-  `.gitignore`), produced by `scripts/build-server.sh` from the
-  `damp.ekeko.jdtls` Maven module.
+  (`damp.ekeko.jdtls.jar`) is staged for packaging, plus `lint-libs/`
+  (plain, non-nested copies of `core.logic`/`qwal`, which `lsp.ts` also
+  points `clojure-lsp` at — the bundle jar only embeds those two as
+  *nested* jars on its own OSGi classpath, which `clj-kondo` can't see
+  into). Not committed here (see `.gitignore`), produced by
+  `scripts/build-server.sh` from the `damp.ekeko.jdtls` Maven module.
 - `scripts/build-server.sh` — builds `damp.ekeko.jdtls` and copies its
   output jar into `server/`. Run this (or `npm run build-server`) before
   packaging or testing the extension.
