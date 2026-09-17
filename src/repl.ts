@@ -54,7 +54,7 @@ export async function startRepl(): Promise<void> {
   // connect straight to the host/port in .nrepl-port - is always correct
   // here.
   await vscode.commands.executeCommand('calva.connect', { connectSequence: 'Generic' });
-  await positionReplWindowAtBottom();
+  await positionReplWindowAtRight();
 }
 
 function isReplWindowTab(tab: vscode.Tab): boolean {
@@ -75,13 +75,13 @@ async function closeStaleReplWindow(): Promise<void> {
 }
 
 // Calva opens the repl-window document beside whatever was already active,
-// i.e. as a second column to the right - not the bottom-of-screen,
-// terminal-like placement users expect from a REPL/console. There's no
-// dedicated "dock to bottom" API, but vscode.setEditorLayout can re-arrange
-// the *existing* editor groups (without touching which tabs are in which
-// group) from side-by-side into stacked rows, which puts the repl-window's
-// group at the bottom, spanning the same width as the code above it.
-async function positionReplWindowAtBottom(): Promise<void> {
+// i.e. as a second column to the right of the code editor -- already the
+// placement wanted here, but not guaranteed if some other layout was in
+// place beforehand (e.g. left over from a previous stacked-rows session).
+// vscode.setEditorLayout re-arranges the *existing* editor groups (without
+// touching which tabs are in which group) into side-by-side columns,
+// keeping the repl-window's group on the right.
+async function positionReplWindowAtRight(): Promise<void> {
   const groups = vscode.window.tabGroups.all;
   // Only re-arrange the layout for the specific shape Calva just created
   // (the user's original editor group, plus the new repl-window group
@@ -95,7 +95,7 @@ async function positionReplWindowAtBottom(): Promise<void> {
     return;
   }
   await vscode.commands.executeCommand('vscode.setEditorLayout', {
-    orientation: 1, // stack groups in rows instead of side-by-side columns
+    orientation: 0, // side-by-side columns instead of stacked rows
     groups: [{ size: 0.65 }, { size: 0.35 }],
   });
 }
