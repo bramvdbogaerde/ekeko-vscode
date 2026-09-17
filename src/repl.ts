@@ -45,6 +45,7 @@ export async function startRepl(): Promise<void> {
   }
 
   vscode.window.showInformationMessage(`Ekeko: nREPL server started on port ${port}.`);
+  await closeStaleReplWindow();
   await useReplWindowOutput();
   // Passing an explicit connect sequence name skips Calva's "Project
   // Type/Connect Sequence" quick pick (which would otherwise ask the user
@@ -54,6 +55,23 @@ export async function startRepl(): Promise<void> {
   // here.
   await vscode.commands.executeCommand('calva.connect', { connectSequence: 'Generic' });
   await positionReplWindowAtBottom();
+}
+
+function isReplWindowTab(tab: vscode.Tab): boolean {
+  return tab.input instanceof vscode.TabInputText && tab.input.uri.path.endsWith('repl.calva-repl');
+}
+
+// The repl-window is a real file (.calva/repl.calva-repl), so VS Code
+// happily restores it as an already-open tab when the editor reopens after
+// being closed with it still open - showing last session's leftover
+// transcript, disconnected, which reads as a live but stuck REPL. Close any
+// such leftover tab before reconnecting so each "Start REPL" begins from a
+// clean, unambiguous state instead of reusing whatever was left open.
+async function closeStaleReplWindow(): Promise<void> {
+  const staleTabs = vscode.window.tabGroups.all.flatMap((group) => group.tabs.filter(isReplWindowTab));
+  if (staleTabs.length > 0) {
+    await vscode.window.tabGroups.close(staleTabs);
+  }
 }
 
 // Calva opens the repl-window document beside whatever was already active,
@@ -72,11 +90,7 @@ async function positionReplWindowAtBottom(): Promise<void> {
   if (groups.length !== 2) {
     return;
   }
-  const hasReplWindowTab = groups.some((group) =>
-    group.tabs.some(
-      (tab) => tab.input instanceof vscode.TabInputText && tab.input.uri.path.endsWith('repl.calva-repl')
-    )
-  );
+  const hasReplWindowTab = groups.some((group) => group.tabs.some(isReplWindowTab));
   if (!hasReplWindowTab) {
     return;
   }
