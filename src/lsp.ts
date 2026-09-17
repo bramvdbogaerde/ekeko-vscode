@@ -27,13 +27,15 @@ import * as vscode from 'vscode';
 // just wrote, always qualifies). Only works where a plain "echo" binary
 // is on PATH (Linux/macOS); Windows isn't handled here.
 
-// Marks a .lsp/config.edn as ours: lets a later, fixed version of this
-// function recognize and replace a file an earlier (possibly buggy)
-// version of itself wrote, without touching a file the user wrote by
-// hand. Bump when the generated shape changes in a way that needs a
-// fresh rewrite even if a MARKER-tagged file is already present (this is
-// itself such a case -- v1 used a plain, non-functional ":classpath" key).
-const MARKER = ';; Written by the Ekeko VS Code extension (v2) -- see ensureClojureLspClasspath in lsp.ts.';
+// Marks a file as ours: lets a later, fixed version of this module
+// recognize and replace a file an earlier (possibly buggy) version of
+// itself wrote, without touching a file the user wrote by hand. Bump the
+// trailing version tag whenever a generated shape changes in a way that
+// needs a fresh rewrite even if an already-tagged file is present (v1 of
+// .lsp/config.edn used a plain, non-functional ":classpath" key, for
+// example).
+const MARKER_PREFIX = ';; Written by the Ekeko VS Code extension';
+const MARKER = `${MARKER_PREFIX} (v2) -- see lsp.ts.`;
 
 export async function ensureClojureLspClasspath(context: vscode.ExtensionContext): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -46,46 +48,49 @@ export async function ensureClojureLspClasspath(context: vscode.ExtensionContext
     return;
   }
 
-  const configUri = vscode.Uri.joinPath(folder.uri, '.lsp', 'config.edn');
-  const existing = await readFileIfExists(configUri);
   const classpathString = jarPaths.join(path.delimiter);
-  const edn =
+  const classpathWritten = await writeOwnedConfigFile(
+    vscode.Uri.joinPath(folder.uri, '.lsp', 'config.edn'),
     `${MARKER}\n` +
-    '{:project-specs [{:project-path ".lsp/config.edn"\n' +
-    `                   :classpath-cmd ["echo" ${ednString(classpathString)}]}]}\n`;
+      '{:project-specs [{:project-path ".lsp/config.edn"\n' +
+      `                   :classpath-cmd ["echo" ${ednString(classpathString)}]}]}\n`,
+    `Add this :classpath-cmd entry to its :project-specs vector yourself: ["echo" ${ednString(classpathString)}]`
+  );
 
-  if (existing !== undefined) {
-    if (existing === edn) {
-      return; // Already set up correctly (e.g. a previous activation wrote it).
-    }
-    if (!existing.startsWith(';; Written by the Ekeko VS Code extension')) {
-      // Not ours -- a real user config we shouldn't overwrite.
-      vscode.window.showWarningMessage(
-        `Ekeko: ${vscode.workspace.asRelativePath(configUri)} already exists and doesn't have a ` +
-          ":project-specs entry for Ekeko's Clojure jars, so Calva won't recognize Ekeko/core.logic " +
-          `symbols. Add this :classpath-cmd entry to its :project-specs vector yourself: ["echo" ` +
-          `${ednString(classpathString)}]`
-      );
-      return;
-    }
-    // Ours, but stale (an older/buggy version of this function wrote it,
-    // or the jar paths changed, e.g. a reinstall to a new extension
-    // version path) -- fall through and rewrite it below.
+  // ekeko/ekeko*/ekeko-n* bind their first (or, for ekeko-n*, second)
+  // argument as a core.logic `fresh` binding vector -- clj-kondo doesn't
+  // execute our macros to discover that, so every logic variable used in
+  // the body (e.g. ?m in (ekeko [?m] ...)) shows as unresolved even once
+  // the macro itself resolves. :lint-as maps them onto clojure.core/fn,
+  // whose own binding-vector shape clj-kondo already understands, so it
+  // treats [?m] as real parameter bindings instead. This is clj-kondo's
+  // own lint configuration, not clojure-lsp's -- it lives in a different
+  // file (.clj-kondo/config.edn) that clj-kondo reads directly, unlike
+  // the classpath override above.
+  const lintAsWritten = await writeOwnedConfigFile(
+    vscode.Uri.joinPath(folder.uri, '.clj-kondo', 'config.edn'),
+    `${MARKER}\n` +
+      '{:lint-as {damp.ekeko/ekeko clojure.core/fn\n' +
+      '           damp.ekeko/ekeko* clojure.core/fn\n' +
+      '           damp.ekeko/ekeko-n* clojure.core/fn}}\n',
+    'Add these entries to its :lint-as map yourself: {damp.ekeko/ekeko clojure.core/fn, ' +
+      'damp.ekeko/ekeko* clojure.core/fn, damp.ekeko/ekeko-n* clojure.core/fn}'
+  );
+
+  if (!classpathWritten && !lintAsWritten) {
+    return; // Both already set up correctly -- nothing changed.
   }
 
-  await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(folder.uri, '.lsp'));
-  await vscode.workspace.fs.writeFile(configUri, Buffer.from(edn, 'utf8'));
-
-  // A restart is only actually needed if clojure-lsp already started (and
-  // did its initial classpath scan) before this file existed -- it reads
-  // :project-specs once at startup and doesn't watch config.edn for
-  // classpath changes afterward (a rescan means re-parsing every .clj file
-  // in every jar on the classpath, not something it does reactively on
-  // every save). We can't tell which case we're in, and restarting is
-  // low-risk and one-time (this whole function no-ops on every later
-  // activation, once the file exists), so just do it rather than ask.
+  // A restart is only strictly necessary for the classpath change (which
+  // clojure-lsp resolves once at startup and doesn't watch config.edn for
+  // afterward -- a rescan means re-parsing every .clj file in every jar on
+  // the classpath); clj-kondo re-reads its own lint config per analysis
+  // pass, so :lint-as changes alone would likely take effect without one.
+  // We can't always tell which happened, and restarting is low-risk and
+  // one-time (this whole function no-ops on every later activation, once
+  // both files are up to date), so just do it rather than ask.
   vscode.window.setStatusBarMessage(
-    'Ekeko: wrote .lsp/config.edn and restarted Clojure LSP so Calva recognizes Ekeko/core.logic symbols.',
+    'Ekeko: updated .lsp/config.edn and restarted Clojure LSP so Calva recognizes Ekeko/core.logic symbols.',
     8000
   );
   try {
@@ -96,6 +101,39 @@ export async function ensureClojureLspClasspath(context: vscode.ExtensionContext
     // will take effect the next time clojure-lsp starts regardless.
     console.error('Ekeko: could not restart Clojure LSP', err);
   }
+}
+
+// Writes `content` to `targetUri` unless it's already there, UNLESS an
+// existing file at that path isn't one we wrote ourselves (no MARKER_PREFIX
+// -- a real user config), in which case it's left untouched and
+// `conflictHint` is shown instead. Returns whether a write happened.
+async function writeOwnedConfigFile(
+  targetUri: vscode.Uri,
+  content: string,
+  conflictHint: string
+): Promise<boolean> {
+  const existing = await readFileIfExists(targetUri);
+  if (existing !== undefined) {
+    if (existing === content) {
+      return false; // Already set up correctly.
+    }
+    if (!existing.startsWith(MARKER_PREFIX)) {
+      vscode.window.showWarningMessage(
+        `Ekeko: ${vscode.workspace.asRelativePath(targetUri)} already exists without Ekeko's settings, ` +
+          `so Calva won't fully recognize Ekeko/core.logic symbols. ${conflictHint}`
+      );
+      return false;
+    }
+    // Ours, but stale (an older/buggy version wrote it, or the content
+    // changed, e.g. a reinstall to a new extension version path) --
+    // fall through and rewrite it below.
+  }
+
+  await vscode.workspace.fs.createDirectory(
+    vscode.Uri.joinPath(targetUri, '..')
+  );
+  await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content, 'utf8'));
+  return true;
 }
 
 async function collectLintClasspathJars(context: vscode.ExtensionContext): Promise<string[]> {

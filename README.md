@@ -98,25 +98,34 @@ This extension isn't published to the Marketplace; install it from a built
    afterward. No Ekeko-specific "load script" command is needed for this;
    Calva already covers it for any Clojure file.
 6. **Autocomplete and diagnostics for Ekeko symbols in Calva.** The first
-   time a Java file is opened, Ekeko writes a `.lsp/config.edn` into the
-   workspace pointing `clojure-lsp` (which powers Calva's autocomplete and
-   red-squiggle diagnostics) at Ekeko's own `.clj` source and its
-   `core.logic`/`qwal` dependencies, none of which are otherwise
-   discoverable from a plain Java project (no `deps.edn`/`project.clj`
-   names them), then restarts Clojure LSP automatically (a status-bar
-   message notes when this happens) so it takes effect immediately — a
-   one-time thing per workspace, and low-risk enough not to ask first. If
-   symbols still don't resolve right after, run **Calva: Restart Clojure
-   LSP** yourself once more; that only happens if Clojure LSP had already
-   started (and done its one-time classpath scan) *before* Ekeko's own
-   activation could write the file — a startup race between two
-   independent extensions, not something either side can fully avoid.
+   time a Java file is opened, Ekeko writes two files so `clojure-lsp`
+   (which powers Calva's autocomplete and red-squiggle diagnostics)
+   recognizes Ekeko/`core.logic` symbols, then restarts Clojure LSP
+   automatically (a status-bar message notes when this happens) so both
+   take effect immediately — a one-time thing per workspace, and low-risk
+   enough not to ask first:
+   - `.lsp/config.edn` points `clojure-lsp` at Ekeko's own `.clj` source
+     and its `core.logic`/`qwal` dependencies, none of which are
+     otherwise discoverable from a plain Java project (no `deps.edn`/
+     `project.clj` names them).
+   - `.clj-kondo/config.edn` maps `ekeko`/`ekeko*`/`ekeko-n*` onto
+     `clojure.core/fn`'s binding shape via `:lint-as`, so logic variables
+     like `?m` in `(ekeko [?m] ...)` are recognized as real bindings
+     instead of showing as unresolved (clj-kondo doesn't execute our
+     macros to see that they expand to `core.logic`'s `fresh`).
 
-   For this to work, write scripts with an explicit `ns` form rather than
-   the `(in-ns 'damp.ekeko)` shorthand shown above: `in-ns` switches
-   namespaces at *runtime*, which clj-kondo (a static analyzer) can't
-   follow, so symbols brought in that way still show as unresolved even
-   though they work fine at the REPL. Prefer:
+   If symbols still don't resolve right after, run **Calva: Restart
+   Clojure LSP** yourself once more; that only happens if Clojure LSP had
+   already started (and done its one-time classpath scan) *before*
+   Ekeko's own activation could write these files — a startup race
+   between two independent extensions, not something either side can
+   fully avoid.
+
+   For the classpath part to work, write scripts with an explicit `ns`
+   form rather than the `(in-ns 'damp.ekeko)` shorthand shown above:
+   `in-ns` switches namespaces at *runtime*, which clj-kondo (a static
+   analyzer) can't follow, so symbols brought in that way still show as
+   unresolved even though they work fine at the REPL. Prefer:
    ```clojure
    (ns my-script
      (:require [damp.ekeko :refer :all]
@@ -126,10 +135,7 @@ This extension isn't published to the Marketplace; install it from a built
    ```
    Add further `damp.ekeko.jdt.*` namespaces (`structure`, `aststructure`,
    `convenience`, `rewrites`) the same way for the relations they define
-   (`has`, `child`, and friends). Logic variables (`?m` above) still show
-   as unresolved regardless — clj-kondo doesn't know `core.logic`'s
-   `fresh`/`ekeko` binds them — that's a purely cosmetic, safe-to-ignore
-   warning.
+   (`has`, `child`, and friends).
 
 ## Architecture
 
