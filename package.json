@@ -37,6 +37,11 @@
         "command": "ekeko.command.stopRepl",
         "title": "Stop REPL",
         "category": "Ekeko"
+      },
+      {
+        "command": "ekeko.command.runQuery",
+        "title": "Run Query",
+        "category": "Ekeko"
       }
     ]
   },
