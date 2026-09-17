@@ -220,3 +220,25 @@ Code extension (TypeScript) only.
       8. **Ekeko: Stop REPL** → "nREPL server stopped", `.nrepl-port`
          removed.
 - [x] Update `/home/bram/ekeko/GOAL.md` status section
+- [x] **Follow-up (Calva autocomplete/diagnostics for Ekeko symbols,
+      verified interactively):** reported gap -- Calva's autocomplete and
+      red-squiggle diagnostics (clj-kondo/clojure-lsp) flagged every
+      Ekeko/core.logic symbol as unresolved in `.clj` scripts, since
+      nothing tells clj-kondo where Ekeko's Clojure source lives (no
+      `deps.edn`/`project.clj` names it -- it's only ever loaded into
+      jdt.ls's own OSGi runtime). Fixed with `src/lsp.ts`, writing a
+      `.lsp/config.edn` `:project-specs`/`:classpath-cmd` entry (the
+      actual supported mechanism -- there's no plain static `:classpath`
+      override key despite that being the obvious first guess) pointing
+      at the bundle jar plus newly-staged plain copies of `core.logic`/
+      `qwal` (`damp.ekeko.jdtls/pom.xml`, `scripts/build-server.sh`;
+      those two are only embedded as *nested* jars inside the OSGi
+      bundle otherwise, invisible to clj-kondo). Verified on the same
+      `shapes-demo` project: a script with `(ns ... (:require
+      [damp.ekeko :refer :all] [damp.ekeko.jdt.ast :refer :all]))`
+      resolved `ekeko`/`ast` cleanly after the one-time "Restart Clojure
+      LSP" prompt (previously both unresolved). Documented in README.md,
+      including that `(in-ns 'damp.ekeko)`-style scripts (used elsewhere
+      in this walkthrough, e.g. `scratch.clj`) still lint as unresolved
+      since clj-kondo can't follow a runtime `in-ns` switch, even though
+      they work fine at the REPL -- a cosmetic, documented limitation.
