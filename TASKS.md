@@ -59,11 +59,25 @@ Code extension (TypeScript) only.
 
 ## Phase 2 — VS Code extension shell + bundle wiring + delegate commands
 
-- [ ] `package.json` (extensionDependencies, javaExtensions, commands)
-- [ ] `src/extension.ts` command registration
-- [ ] `EkekoCommandHandler` + `plugin.xml` delegateCommandHandler registration
-- [ ] Verify: `.vsix` installs, bundle loads into redhat.java's jdt.ls,
-      `ekeko.rebuildModel` succeeds
+- [x] `package.json` (extensionDependencies, javaExtensions, commands),
+      `scripts/build-server.sh` (builds `damp.ekeko.jdtls` and stages its
+      jar into `server/` for packaging), `src/extension.ts`
+- [x] `EkekoCommandHandler` + `plugin.xml` delegateCommandHandler
+      registration (in `damp.ekeko.jdtls`, its own commit)
+- [x] Verify: packaged a real `.vsix`, installed it in VSCodium alongside
+      `redhat.java`, ran "Ekeko: Rebuild Model" from the command palette
+      against a sample Java project, and confirmed the
+      "Ekeko: rebuilt model for sample-java-project" success notification —
+      full round trip (command palette → extension → `java.execute.
+      workspaceCommand` → `EkekoCommandHandler` → `EkekoModel.
+      fullProjectBuild`) verified interactively. Along the way, fixed:
+      the OSGi bundle needing `singleton:=true` for its `plugin.xml`
+      extensions to be processed at all; `EkekoNature` needing its own
+      nature/builder extension declarations (not just referencing the ids);
+      and the client-side command needing a distinct id
+      (`ekeko.command.rebuildModel`) since the LSP client library
+      auto-registers a same-named passthrough for every server-advertised
+      command, colliding with our own registration under the raw id.
 
 ## Phase 3 — REPL integration (Calva)
 

@@ -5,6 +5,9 @@ dist/
 *.vsix
 .vscode-test/
 
+# Built by scripts/build-server.sh from damp.ekeko.jdtls; not source
+server/*.jar
+
 # Java / OSGi bundle build
 target/
 build/

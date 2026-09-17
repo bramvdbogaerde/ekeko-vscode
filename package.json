@@ -1,0 +1,46 @@
+{
+  "name": "ekeko",
+  "displayName": "Ekeko",
+  "description": "Query and explore Java code with Ekeko's logic-programming query engine, running inside the JDT Language Server.",
+  "version": "0.0.1",
+  "publisher": "ekeko",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:java"
+  ],
+  "main": "./out/extension.js",
+  "extensionDependencies": [
+    "redhat.java"
+  ],
+  "contributes": {
+    "javaExtensions": [
+      "./server/damp.ekeko.jdtls.jar"
+    ],
+    "commands": [
+      {
+        "command": "ekeko.command.rebuildModel",
+        "title": "Ekeko: Rebuild Model",
+        "category": "Ekeko"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "build-server": "./scripts/build-server.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^4.0.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "EPL-1.0"
+}

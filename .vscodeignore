@@ -1,0 +1,9 @@
+.gitignore
+.vscodeignore
+tsconfig.json
+TASKS.md
+src/**
+scripts/**
+spike/**
+*.vsix
+.git/**
