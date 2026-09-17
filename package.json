@@ -25,17 +25,17 @@
     "commands": [
       {
         "command": "ekeko.command.rebuildModel",
-        "title": "Ekeko: Rebuild Model",
+        "title": "Rebuild Model",
         "category": "Ekeko"
       },
       {
         "command": "ekeko.command.startRepl",
-        "title": "Ekeko: Start REPL",
+        "title": "Start REPL",
         "category": "Ekeko"
       },
       {
         "command": "ekeko.command.stopRepl",
-        "title": "Ekeko: Stop REPL",
+        "title": "Stop REPL",
         "category": "Ekeko"
       }
     ]

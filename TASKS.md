@@ -87,12 +87,24 @@ Code extension (TypeScript) only.
       to the first workspace folder root)
 - [x] Start/stop REPL commands (`Ekeko: Start REPL`/`Ekeko: Stop REPL`) +
       Calva connect wiring (`calva.connect` invoked automatically after
-      starting; prompts to install Calva if not present).
-      `.vscode/extensions.json` recommends `betterthantomorrow.calva`.
-- [x] Verify: started the REPL from the command palette, confirmed the
-      "nREPL server started on port N" notification and `.nrepl-port` file,
-      connected via Calva's "Clojure (projectless)" flow, evaluated
-      `(+ 1 2)` => `3`, then ran a real Ekeko query against the live
+      starting, with an explicit `connectSequence: 'Generic'` so Calva
+      connects straight away instead of prompting the user to pick a
+      project type/connect sequence; prompts to install Calva if not
+      present). `.vscode/extensions.json` recommends
+      `betterthantomorrow.calva`.
+- [x] REPL UX polish: `EkekoReplController`'s nREPL server now runs with
+      cider-nrepl's middleware (`damp.ekeko.jdtls`'s own commit) instead of
+      bare nREPL, so Calva no longer warns about missing cider-nrepl
+      `info`/`complete`/etc. support; `startRepl` also points Calva at its
+      classic prompted `repl-window` output destination (rather than the
+      newer promptless terminal/sidebar destinations) and auto-arranges the
+      editor layout so that window docks at the bottom of the screen, below
+      the code editor, instead of opening as a side-by-side column.
+- [x] Verify: started the REPL from the command palette — connects
+      immediately with no project-type quick pick, no cider-nrepl warning,
+      and the prompted REPL window (`clj:user:>`) opens docked at the
+      bottom. Confirmed the "nREPL server started on port N" notification
+      and `.nrepl-port` file, then ran a real Ekeko query against the live
       project — `(count (ekeko [?m] (ast :MethodDeclaration ?m)))` => `2`,
       correctly matching the sample file's two methods. First real Clojure
       execution (not just Java) in the live bundle; surfaced a stale
