@@ -162,14 +162,61 @@ Code extension (TypeScript) only.
 
 ## Phase 5 — Script loading button
 
-- [ ] `ekeko.loadScript` delegate command
-- [ ] "Ekeko: Load Script into REPL" command + editor-title button
-- [ ] Verify: sample script loads and is callable from Calva REPL
+- [x] **Skipped, per explicit user decision.** Calva's own "Load/Evaluate
+      Current File (and its Requires/Dependencies)" command already loads
+      any `.clj` file's definitions into the connected REPL's runtime --
+      exactly what a custom `ekeko.loadScript` delegate command + editor-
+      title button would have added, just without Ekeko-specific code to
+      build and maintain. Confirmed as part of the Phase 6 walkthrough
+      below: `scripts/helpers.clj`-style scripts load via that stock Calva
+      command and their defined functions become callable from the REPL
+      immediately afterward, with no Ekeko-side involvement at all.
 
 ## Phase 6 — Packaging and polish
 
-- [ ] `vsce package`, verify auto-install of `redhat.java` dependency
-- [ ] `.vscode/extensions.json` recommending Calva
-- [ ] Top-level usage README
-- [ ] Full end-to-end walkthrough on a nontrivial multi-file Java project
-- [ ] Update `/home/bram/ekeko/GOAL.md` status section
+- [x] `vsce package`, verify auto-install of `redhat.java` dependency --
+      uninstalled both `ekeko.ekeko` and `redhat.java`, installed only the
+      built `ekeko-0.0.1.vsix` via `codium --install-extension`, and
+      confirmed `codium --list-extensions` then listed `redhat.java` again
+      on its own (Calva stayed uninstalled, as expected -- it's a
+      recommendation, not a hard `extensionDependencies` entry).
+- [x] `.vscode/extensions.json` recommending Calva (already in place since
+      Phase 3)
+- [x] Top-level usage README (this directory's `README.md`, rewritten with
+      install/usage instructions) and `damp.ekeko.jdtls/README.md` updated
+      to document `EkekoQueryRunner`/`EkekoResultsBridge`/`gui.clj`
+- [x] Full end-to-end walkthrough on a nontrivial multi-file Java project
+      -- a fresh 5-file `shapes-demo` project (`Shape` interface,
+      `Circle`/`Rectangle` implementations, `ShapeUtils`, `Main`),
+      deliberately created *without* the Ekeko nature pre-set in
+      `.project`, verified interactively on the XFCE desktop:
+      1. Installed the `.vsix` as above (`redhat.java` auto-installed).
+      2. Opened `shapes-demo`; `EkekoJdtlsActivator` auto-enabled the
+         Ekeko nature on its own (confirmed by `.project` being rewritten
+         on disk to add `damp.ekeko.plugin.ekekoNature` and its builder,
+         with no manual step).
+      3. **Ekeko: Rebuild Model** → "Ekeko: rebuilt model for shapes-demo".
+      4. **Ekeko: Start REPL** → connects, docks right as before.
+      5. Evaluated `(ekeko* [?t] (ast :TypeDeclaration ?t))` (via a
+         `scratch.clj`, since typing directly into the live repl-window
+         buffer at a guessed cursor position turned out to corrupt its
+         scrollback -- evaluating a real file avoids that) -- the Ekeko
+         panel auto-opened showing all 5 type declarations, one per file
+         (`Shape`, `ShapeUtils`, `Circle implements Shape`, `Rectangle
+         implements Shape`, `Main`).
+      6. **Cross-file jump-to-source:** clicked the `Rectangle` row while
+         `Rectangle.java` was *not* open in any tab -- it opened and
+         selected exactly that class body, confirming jump-to-source
+         works across files, not just within the currently active one.
+      7. **Script loading via Calva (Phase 5's replacement):** loaded
+         `scripts/helpers.clj` (defining `count-of-kind`) with Calva's own
+         "Load/Evaluate Current File" command; then, from the *separate*
+         `scratch.clj`, called `(count-of-kind :MethodDeclaration)` →
+         `7`, matching independently running **Ekeko: Run Query** with
+         `(ekeko [?m] (ast :MethodDeclaration ?m))` → also `7` results.
+         Confirms a plain `.clj` script's definitions become callable
+         project-wide immediately after loading, with zero Ekeko-specific
+         "load script" mechanism involved.
+      8. **Ekeko: Stop REPL** → "nREPL server stopped", `.nrepl-port`
+         removed.
+- [x] Update `/home/bram/ekeko/GOAL.md` status section
