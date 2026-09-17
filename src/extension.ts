@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { startRepl, stopRepl } from './repl';
 import { runQuery } from './queryRunner';
-import { showQueryResult, QueryResult } from './resultsPanel';
+import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
 
 // Registered under distinct ids (not the raw server command ids, e.g.
 // 'ekeko.rebuildModel') because the LSP client library used by redhat.java
@@ -9,11 +9,13 @@ import { showQueryResult, QueryResult } from './resultsPanel';
 // for every command the server advertises via executeCommandProvider --
 // registering our own handler under the same id collides with it.
 export function activate(context: vscode.ExtensionContext) {
+  const resultsView = new EkekoResultsViewProvider(context.extensionUri);
   context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(EkekoResultsViewProvider.viewType, resultsView),
     vscode.commands.registerCommand('ekeko.command.rebuildModel', rebuildModel),
     vscode.commands.registerCommand('ekeko.command.startRepl', startRepl),
     vscode.commands.registerCommand('ekeko.command.stopRepl', stopRepl),
-    vscode.commands.registerCommand('ekeko.command.runQuery', () => runQuery(context)),
+    vscode.commands.registerCommand('ekeko.command.runQuery', () => runQuery(resultsView)),
     // Not a client-side passthrough of a server-advertised executeCommand
     // id (see the note above) -- this is the server pushing to us, via a
     // workspace/notify notification (damp.ekeko.jdtls.EkekoResultsBridge,
@@ -22,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
     // connected Calva REPL, mirroring how the Eclipse plugin pops its
     // Barista results view for the same two macros.
     vscode.commands.registerCommand('ekeko.showResults', (payload: QueryResult) =>
-      showQueryResult(context, payload)
+      resultsView.reveal(payload)
     )
   );
 }

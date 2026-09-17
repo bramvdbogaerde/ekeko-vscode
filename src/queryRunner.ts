@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { showQueryResult, QueryResult } from './resultsPanel';
+import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
 
 const EXAMPLE_QUERY = '(ekeko [?m] (ast :MethodDeclaration ?m))';
 
-export async function runQuery(context: vscode.ExtensionContext): Promise<void> {
+export async function runQuery(resultsView: EkekoResultsViewProvider): Promise<void> {
   const query = await getQueryText();
   if (!query) {
     return;
@@ -17,12 +17,12 @@ export async function runQuery(context: vscode.ExtensionContext): Promise<void> 
       query
     );
   } catch (err) {
-    showQueryResult(context, { query, error: String(err) });
+    await resultsView.reveal({ query, error: String(err) });
     vscode.window.showErrorMessage(`Ekeko: query failed - ${err}`);
     return;
   }
 
-  showQueryResult(context, { ...(result as Omit<QueryResult, 'query'>), query });
+  await resultsView.reveal({ ...(result as Omit<QueryResult, 'query'>), query });
 }
 
 // Per GOAL.md/plan: read the query from the active editor's selection when

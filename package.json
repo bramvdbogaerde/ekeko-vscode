@@ -22,6 +22,24 @@
     "javaExtensions": [
       "./server/damp.ekeko.jdtls.jar"
     ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "ekeko",
+          "title": "Ekeko",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ekeko": [
+        {
+          "type": "webview",
+          "id": "ekeko.resultsView",
+          "name": "Results"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "ekeko.command.rebuildModel",

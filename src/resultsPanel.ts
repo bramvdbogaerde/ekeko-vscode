@@ -21,46 +21,54 @@ export interface QueryError {
   error: string;
 }
 
-// Singleton: repeated queries (whether typed at the Calva REPL as
-// ekeko*/ekeko-n*, per GOAL.md's "just like the Eclipse plugin" requirement,
-// or run via the "Ekeko: Run Query" command) reveal/update the same panel
-// rather than piling up a new tab per query.
-let currentPanel: vscode.WebviewPanel | undefined;
+// A view docked in the bottom Panel area (contributes.viewsContainers.panel
+// -- the same area as Terminal/Problems/Output), not an editor-area webview
+// panel/tab, per explicit user request: results shouldn't compete for
+// editor space while a Java file and the REPL are both open. VS Code has no
+// manifest setting to default a contributed view straight into the
+// secondary/right sidebar (that's always a user layout choice), but any
+// Panel-area view -- this one included -- can be dragged there, or moved
+// wholesale via "View: Move Panel to Secondary Side Bar".
+export class EkekoResultsViewProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'ekeko.resultsView';
 
-export function showQueryResult(context: vscode.ExtensionContext, result: QueryResult | QueryError): void {
-  const panel = getOrCreatePanel(context);
-  panel.webview.postMessage({ command: 'render', result });
-}
+  private view: vscode.WebviewView | undefined;
+  private lastResult: QueryResult | QueryError | undefined;
 
-function getOrCreatePanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
-  if (currentPanel) {
-    currentPanel.reveal(vscode.ViewColumn.Beside, true);
-    return currentPanel;
+  constructor(private readonly extensionUri: vscode.Uri) {}
+
+  resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.view = webviewView;
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'media')],
+    };
+    webviewView.webview.html = getHtml(webviewView.webview, this.extensionUri);
+    webviewView.webview.onDidReceiveMessage(async (message) => {
+      if (message.command === 'reveal') {
+        await revealCodeCell(message.uri, message.startOffset, message.length);
+      }
+    });
+    webviewView.onDidDispose(() => {
+      this.view = undefined;
+    });
+    if (this.lastResult) {
+      webviewView.webview.postMessage({ command: 'render', result: this.lastResult });
+    }
   }
 
-  const panel = vscode.window.createWebviewPanel(
-    'ekekoResults',
-    'Ekeko Results',
-    { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
-    {
-      enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
-      retainContextWhenHidden: true,
-    }
-  );
-
-  panel.webview.html = getHtml(panel.webview, context.extensionUri);
-  panel.onDidDispose(() => {
-    currentPanel = undefined;
-  });
-  panel.webview.onDidReceiveMessage(async (message) => {
-    if (message.command === 'reveal') {
-      await revealCodeCell(message.uri, message.startOffset, message.length);
-    }
-  });
-
-  currentPanel = panel;
-  return panel;
+  // Called both from the "Ekeko: Run Query" command and from the
+  // ekeko.showResults notification the server pushes whenever
+  // ekeko*/ekeko-n* is evaluated at the connected Calva REPL. Focusing the
+  // view (rather than posting directly) both reveals the sidebar if it's
+  // closed and, the first time, triggers resolveWebviewView -- which then
+  // renders lastResult itself, so the render below is only redundant (not
+  // missed) if that race goes the other way.
+  public async reveal(result: QueryResult | QueryError): Promise<void> {
+    this.lastResult = result;
+    await vscode.commands.executeCommand(`${EkekoResultsViewProvider.viewType}.focus`);
+    this.view?.webview.postMessage({ command: 'render', result });
+  }
 }
 
 async function revealCodeCell(uriString: string, startOffset: number, length: number): Promise<void> {

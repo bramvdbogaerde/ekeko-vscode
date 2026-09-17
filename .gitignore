@@ -27,6 +27,12 @@ spike/target/
 spike/build/
 spike/classes/
 spike/lib/
+# Local editor/tooling state from opening spike/ as its own workspace root
+# to test-run EkekoJdtSpike.java directly (Calva/clojure-lsp caches)
+spike/.calva/
+spike/.clj-kondo/
+spike/.lsp/
+spike/.vscode/
 
 # Editor / OS
 .DS_Store
