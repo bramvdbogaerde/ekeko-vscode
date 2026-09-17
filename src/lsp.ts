@@ -26,6 +26,15 @@ import * as vscode from 'vscode';
 // its :classpath-cmd is used at all -- ".lsp/config.edn" itself, which we
 // just wrote, always qualifies). Only works where a plain "echo" binary
 // is on PATH (Linux/macOS); Windows isn't handled here.
+
+// Marks a .lsp/config.edn as ours: lets a later, fixed version of this
+// function recognize and replace a file an earlier (possibly buggy)
+// version of itself wrote, without touching a file the user wrote by
+// hand. Bump when the generated shape changes in a way that needs a
+// fresh rewrite even if a MARKER-tagged file is already present (this is
+// itself such a case -- v1 used a plain, non-functional ":classpath" key).
+const MARKER = ';; Written by the Ekeko VS Code extension (v2) -- see ensureClojureLspClasspath in lsp.ts.';
+
 export async function ensureClojureLspClasspath(context: vscode.ExtensionContext): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
@@ -40,23 +49,30 @@ export async function ensureClojureLspClasspath(context: vscode.ExtensionContext
   const configUri = vscode.Uri.joinPath(folder.uri, '.lsp', 'config.edn');
   const existing = await readFileIfExists(configUri);
   const classpathString = jarPaths.join(path.delimiter);
-
-  if (existing !== undefined) {
-    if (existing.includes(classpathString)) {
-      return; // Already set up (e.g. a previous activation wrote it).
-    }
-    vscode.window.showWarningMessage(
-      `Ekeko: ${vscode.workspace.asRelativePath(configUri)} already exists and doesn't have a ` +
-        ":project-specs entry for Ekeko's Clojure jars, so Calva won't recognize Ekeko/core.logic " +
-        `symbols. Add this :classpath-cmd entry to its :project-specs vector yourself: ["echo" ` +
-        `${ednString(classpathString)}]`
-    );
-    return;
-  }
-
   const edn =
+    `${MARKER}\n` +
     '{:project-specs [{:project-path ".lsp/config.edn"\n' +
     `                   :classpath-cmd ["echo" ${ednString(classpathString)}]}]}\n`;
+
+  if (existing !== undefined) {
+    if (existing === edn) {
+      return; // Already set up correctly (e.g. a previous activation wrote it).
+    }
+    if (!existing.startsWith(';; Written by the Ekeko VS Code extension')) {
+      // Not ours -- a real user config we shouldn't overwrite.
+      vscode.window.showWarningMessage(
+        `Ekeko: ${vscode.workspace.asRelativePath(configUri)} already exists and doesn't have a ` +
+          ":project-specs entry for Ekeko's Clojure jars, so Calva won't recognize Ekeko/core.logic " +
+          `symbols. Add this :classpath-cmd entry to its :project-specs vector yourself: ["echo" ` +
+          `${ednString(classpathString)}]`
+      );
+      return;
+    }
+    // Ours, but stale (an older/buggy version of this function wrote it,
+    // or the jar paths changed, e.g. a reinstall to a new extension
+    // version path) -- fall through and rewrite it below.
+  }
+
   await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(folder.uri, '.lsp'));
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(edn, 'utf8'));
 
