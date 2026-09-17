@@ -81,10 +81,23 @@ Code extension (TypeScript) only.
 
 ## Phase 3 — REPL integration (Calva)
 
-- [ ] nREPL startup inside the bundle (no ccw dependency)
-- [ ] `.nrepl-port` written automatically by the extension
-- [ ] Start/stop REPL commands + Calva connect wiring
-- [ ] Verify: REPL connects via Calva, live query returns correct results
+- [x] nREPL startup inside the bundle (`EkekoReplController`, no ccw
+      dependency — see `damp.ekeko.jdtls`'s own commits)
+- [x] `.nrepl-port` written automatically by the extension (`src/repl.ts`,
+      to the first workspace folder root)
+- [x] Start/stop REPL commands (`Ekeko: Start REPL`/`Ekeko: Stop REPL`) +
+      Calva connect wiring (`calva.connect` invoked automatically after
+      starting; prompts to install Calva if not present).
+      `.vscode/extensions.json` recommends `betterthantomorrow.calva`.
+- [x] Verify: started the REPL from the command palette, confirmed the
+      "nREPL server started on port N" notification and `.nrepl-port` file,
+      connected via Calva's "Clojure (projectless)" flow, evaluated
+      `(+ 1 2)` => `3`, then ran a real Ekeko query against the live
+      project — `(count (ekeko [?m] (ast :MethodDeclaration ?m)))` => `2`,
+      correctly matching the sample file's two methods. First real Clojure
+      execution (not just Java) in the live bundle; surfaced a stale
+      Equinox bundle cache issue along the way (not a source bug — see
+      `damp.ekeko.jdtls/README.md`'s troubleshooting note).
 
 ## Phase 4 — Results table webview and jump-to-source
 

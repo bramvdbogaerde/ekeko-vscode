@@ -1,13 +1,16 @@
 import * as vscode from 'vscode';
+import { startRepl, stopRepl } from './repl';
 
-// Registered under a distinct id (not the raw server command id
+// Registered under distinct ids (not the raw server command ids, e.g.
 // 'ekeko.rebuildModel') because the LSP client library used by redhat.java
 // auto-registers a client-side passthrough command under that exact name
 // for every command the server advertises via executeCommandProvider --
 // registering our own handler under the same id collides with it.
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
-    vscode.commands.registerCommand('ekeko.command.rebuildModel', rebuildModel)
+    vscode.commands.registerCommand('ekeko.command.rebuildModel', rebuildModel),
+    vscode.commands.registerCommand('ekeko.command.startRepl', startRepl),
+    vscode.commands.registerCommand('ekeko.command.stopRepl', stopRepl)
   );
 }
 
