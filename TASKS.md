@@ -150,6 +150,15 @@ Code extension (TypeScript) only.
       plain value cells) for both of the sample file's methods,
       `greet`/`main`. Clicked both code cells: each opened `Hello.java`
       and selected exactly that method declaration's source range.
+- [x] **Follow-up (UI placement, verified interactively):** moved the
+      results webview off the editor area (`vscode.window.
+      createWebviewPanel`) into a bottom-panel tab instead
+      (`EkekoResultsViewProvider`, `contributes.views` +
+      `viewsContainers.panel`) -- shows as "Ekeko" next to
+      Problems/Output/Terminal, alongside the code editor rather than
+      competing with it, per explicit user request. Re-verified the same
+      REPL-driven auto-reveal and jump-to-source both still work from the
+      new location.
 
 ## Phase 5 — Script loading button
 
