@@ -60,21 +60,25 @@ export async function ensureClojureLspClasspath(context: vscode.ExtensionContext
   await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(folder.uri, '.lsp'));
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(edn, 'utf8'));
 
-  const restart = 'Restart Clojure LSP';
-  const choice = await vscode.window.showInformationMessage(
-    `Ekeko: wrote ${vscode.workspace.asRelativePath(configUri)} so Calva recognizes Ekeko/core.logic ` +
-      'symbols (autocomplete, diagnostics) in .clj files. Restart Clojure LSP to pick it up.',
-    restart
+  // A restart is only actually needed if clojure-lsp already started (and
+  // did its initial classpath scan) before this file existed -- it reads
+  // :project-specs once at startup and doesn't watch config.edn for
+  // classpath changes afterward (a rescan means re-parsing every .clj file
+  // in every jar on the classpath, not something it does reactively on
+  // every save). We can't tell which case we're in, and restarting is
+  // low-risk and one-time (this whole function no-ops on every later
+  // activation, once the file exists), so just do it rather than ask.
+  vscode.window.setStatusBarMessage(
+    'Ekeko: wrote .lsp/config.edn and restarted Clojure LSP so Calva recognizes Ekeko/core.logic symbols.',
+    8000
   );
-  if (choice === restart) {
-    try {
-      await vscode.commands.executeCommand('calva.clojureLsp.restart');
-    } catch (err) {
-      // Calva may not be installed, or not active yet (it only activates
-      // once a Clojure file is open) -- the config is already written and
-      // will take effect the next time clojure-lsp starts regardless.
-      console.error('Ekeko: could not restart Clojure LSP', err);
-    }
+  try {
+    await vscode.commands.executeCommand('calva.clojureLsp.restart');
+  } catch (err) {
+    // Calva may not be installed, or not active yet (it only activates
+    // once a Clojure file is open) -- the config is already written and
+    // will take effect the next time clojure-lsp starts regardless.
+    console.error('Ekeko: could not restart Clojure LSP', err);
   }
 }
 

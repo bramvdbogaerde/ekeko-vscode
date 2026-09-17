@@ -103,12 +103,14 @@ This extension isn't published to the Marketplace; install it from a built
    red-squiggle diagnostics) at Ekeko's own `.clj` source and its
    `core.logic`/`qwal` dependencies, none of which are otherwise
    discoverable from a plain Java project (no `deps.edn`/`project.clj`
-   names them). A one-time "Restart Clojure LSP" prompt appears after
-   that file is written — accept it (or run **Calva: Restart Clojure LSP**
-   yourself later) to pick it up; if symbols still don't resolve
-   immediately afterward, running that restart command a second time
-   clears it up (`clojure-lsp` occasionally needs an extra cache refresh
-   on the very first setup).
+   names them), then restarts Clojure LSP automatically (a status-bar
+   message notes when this happens) so it takes effect immediately — a
+   one-time thing per workspace, and low-risk enough not to ask first. If
+   symbols still don't resolve right after, run **Calva: Restart Clojure
+   LSP** yourself once more; that only happens if Clojure LSP had already
+   started (and done its one-time classpath scan) *before* Ekeko's own
+   activation could write the file — a startup race between two
+   independent extensions, not something either side can fully avoid.
 
    For this to work, write scripts with an explicit `ns` form rather than
    the `(in-ns 'damp.ekeko)` shorthand shown above: `in-ns` switches
