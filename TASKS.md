@@ -99,12 +99,18 @@ Code extension (TypeScript) only.
       classic prompted `repl-window` output destination (rather than the
       newer promptless terminal/sidebar destinations) and auto-arranges the
       editor layout so that window docks at the bottom of the screen, below
-      the code editor, instead of opening as a side-by-side column.
+      the code editor, instead of opening as a side-by-side column. Since
+      the repl-window is a real file, VS Code also restores it as an
+      already-open (but disconnected/stale) tab across editor restarts;
+      `startRepl` now closes any such leftover tab before reconnecting.
 - [x] Verify: started the REPL from the command palette — connects
       immediately with no project-type quick pick, no cider-nrepl warning,
       and the prompted REPL window (`clj:user:>`) opens docked at the
-      bottom. Confirmed the "nREPL server started on port N" notification
-      and `.nrepl-port` file, then ran a real Ekeko query against the live
+      bottom. Quit and relaunched the editor to reproduce the stale-tab
+      restore, then confirmed "Ekeko: Start REPL" closed it and reconnected
+      cleanly in the same bottom-docked position. Confirmed the "nREPL
+      server started on port N" notification and `.nrepl-port` file, then
+      ran a real Ekeko query against the live
       project — `(count (ekeko [?m] (ast :MethodDeclaration ?m)))` => `2`,
       correctly matching the sample file's two methods. First real Clojure
       execution (not just Java) in the live bundle; surfaced a stale
