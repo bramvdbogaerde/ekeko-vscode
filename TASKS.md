@@ -119,12 +119,37 @@ Code extension (TypeScript) only.
 
 ## Phase 4 — Results table webview and jump-to-source
 
-- [ ] `QueryResultSerializer` (code-element detection + offset/URI payload)
-- [ ] Client-side offset→Range conversion
-- [ ] Results webview (table, clickable code cells, inert value cells)
-- [ ] Jump-to-source wiring
-- [ ] `Ekeko: Run Query` command
-- [ ] Verify: mixed-type query result table, click-to-jump works
+- [x] `EkekoQueryRunner` (code-element detection + offset/URI payload),
+      wired as the `ekeko.runQuery` delegate command
+- [x] Client-side offset→Range conversion (`TextDocument.positionAt` in
+      `resultsPanel.ts`'s `revealCodeCell`)
+- [x] Results webview (table, clickable code cells, inert value cells) --
+      `resultsPanel.ts` + `media/results.{js,css}`
+- [x] Jump-to-source wiring
+- [x] `Ekeko: Run Query` command (`queryRunner.ts`: reads the active
+      editor's selection, or prompts)
+- [x] **Architecture correction (see GOAL.md):** the plan's Phase 4 didn't
+      cover the REPL-driven path damp.ekeko's own Eclipse plugin actually
+      uses -- `ekeko*`/`ekeko-n*` popping a results view as a side effect
+      of evaluating them at the REPL, not a separate "run query" action.
+      Added: this bundle's own `damp/ekeko/gui.clj` (replacing the
+      Eclipse-plugin one, which isn't loadable outside Eclipse -- see
+      `damp.ekeko.jdtls/pom.xml`) implements the same
+      `eclipse-uithread-return`/`open-barista-results-viewer*` contract
+      those macros already call via `requiring-resolve`, calling
+      `EkekoResultsBridge.showResults` to push the finished query to VS
+      Code as a `workspace/notify` notification; the extension's
+      `ekeko.showResults` command (`extension.ts`) opens/updates the same
+      results webview from that push, unprompted.
+- [x] Verify: on the Gnome/XFCE desktop, started the REPL, then evaluated
+      `(ekeko* [?m ?name] (ast :MethodDeclaration ?m) (fresh [?sn] (has
+      :name ?m ?sn) (equals ?name (.getIdentifier ?sn))))` at the
+      connected Calva REPL against the sample project -- the results
+      webview popped open automatically (no separate command run),
+      showing a mixed-type table (`?M` clickable code cells, `?NAME`
+      plain value cells) for both of the sample file's methods,
+      `greet`/`main`. Clicked both code cells: each opened `Hello.java`
+      and selected exactly that method declaration's source range.
 
 ## Phase 5 — Script loading button
 
