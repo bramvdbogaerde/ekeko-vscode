@@ -1,52 +1,54 @@
-# Ekeko for VS Code
+# damp.ekeko.plugin
 
-Query and explore Java code from VS Code using
-[Ekeko](https://github.com/cderoove/damp.ekeko), a Clojure/core.logic-based
-logic-programming query engine over Java ASTs — originally an Eclipse
-plugin, ported here to run inside the same JDT Language Server process that
-powers VS Code's own Java support.
+Ekeko enables querying and manipulating an Eclipse workspace using applicative logic programs.
 
-Ekeko's query engine runs as a real OSGi bundle installed directly into the
-JDT Language Server started by the
-[Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java)
-(`redhat.java`) extension, giving it full, direct access to Eclipse JDT's AST
-and binding APIs — the same access it had as a native Eclipse plugin, not
-just what the Language Server Protocol exposes. An interactive Clojure REPL
-(nREPL) runs inside that same process; connect to it with the
-[Calva](https://marketplace.visualstudio.com/items?itemName=betterthantomorrow.calva)
-extension to query the currently loaded Java project interactively. Query
-results that resolve to real code elements (methods, types, ...) show up in
-a results table and are clickable to jump straight to the source location.
+Its libraries provide support for answering program queries (e.g., "*is my code bug free?*" or "*does my code follow the prescribed design?*") as well as transforming programs (e.g., "*patch my code as follows*") in a declarative manner.
+
+Ekeko is based on the excellent [core.logic](https://github.com/clojure/core.logic) port to [Clojure](http://clojure.org/) of the applicative logic programming library [Kanren](http://kanren.sourceforge.net/).
+
+## Installation
+Install the prebuilt Ekeko plugin from the Eclipse update site: 
+[http://soft.vub.ac.be/~cderoove/eclipse/](http://soft.vub.ac.be/~cderoove/eclipse/) 
+
+Ensure plugin dependency [Counterclockwise](http://code.google.com/p/counterclockwise/) is installed (e.g., from its update site found at [http://updatesite.ccw-ide.org/stable/](http://updatesite.ccw-ide.org/stable/)).
+
+Using the optional [damp.ekeko.visualizer](https://github.com/cderoove/damp.ekeko/tree/master/damp.ekeko.visualizer.plugin) extension requires dependency [Zest](http://www.eclipse.org/gef/zest/) to be installed (e.g., from its update site found at [http://download.eclipse.org/tools/gef/updates/releases/](http://download.eclipse.org/tools/gef/updates/releases/)).
+
+See [Installing New Software](http://help.eclipse.org/juno/topic/org.eclipse.platform.doc.user/tasks/tasks-124.htm) for help on installing Eclipse plugins from an update site. 
+
+Ekeko has been tested against [Eclipse Luna (4.4)](http://www.eclipse.org)
+
+Alternatively, the plugin can also be built from the [damp.ekeko.plugin](https://github.com/cderoove/damp.ekeko/tree/master/damp.ekeko.plugin) project in this repository. Its current build status is:
+
+[![Build Status](https://travis-ci.org/cderoove/damp.ekeko.svg?branch=master)](https://travis-ci.org/cderoove/damp.ekeko)
+
+## Documentation
+
+See the [damp.ekeko wiki](https://github.com/cderoove/damp.ekeko/wiki) for information on:  
+
+* [how to get started](https://github.com/cderoove/damp.ekeko/wiki/Getting-Started-with-Ekeko)
+* [example queries](https://github.com/cderoove/damp.ekeko/wiki/Example-Ekeko-Queries)
+
+See the [damp.ekeko API documentation](http://cderoove.github.com/damp.ekeko/) for an overview of all relations and functions that are included.
+
+See the following publication for the motivation behind Ekeko and possible applications: 
+> [Building Development Tools Interactively using the Ekeko Meta-Programming Library](http://soft.vub.ac.be/Publications/2013/vub-soft-tr-13-22.pdf)<br/> 
+> Coen De Roover, Reinout Stevens<br/>
+> Proceedings of the IEEE CSMR-WCRE 2014 Software Evolution Week (CSMR-WCRE14), Tool Demo Track, Antwerp (Belgium)
+
+There is also a screencast accompanying this publication:
+[![Ekeko Demonstration](http://img.youtube.com/vi/cPehkX5MvFg/0.jpg)](https://www.youtube.com/watch?v=cPehkX5MvFg)
 
 ## Requirements
 
-- VS Code or VSCodium, 1.85 or newer.
+VS Code or VSCodium, 1.85 or newer.
+
+The following extensions will be installed alongside Ekeko:
 - The [Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java)
   (`redhat.java`) extension. Declared as a hard dependency
   (`extensionDependencies`), so installing this extension installs that one
   automatically if it isn't already present.
-- The [Calva](https://marketplace.visualstudio.com/items?itemName=betterthantomorrow.calva)
-  extension, to connect to the REPL. Not a hard dependency (Ekeko's other
-  commands work without it), but listed as a recommended extension
-  (`.vscode/extensions.json`) — VS Code will offer to install it, or you can
-  install it yourself from the Marketplace.
-
-## Installing
-
-This extension isn't published to the Marketplace; install it from a built
-`.vsix`:
-
-1. Build one — see "Building" below — or use an existing
-   `ekeko-*.vsix` in this directory.
-2. In VS Code: Extensions view → `...` menu → "Install from VSIX...", and
-   pick the file. Or from the command line:
-   ```sh
-   code --install-extension ekeko-0.0.1.vsix
-   # or, for VSCodium:
-   codium --install-extension ekeko-0.0.1.vsix
-   ```
-3. VS Code installs `redhat.java` alongside it if it isn't already present,
-   and offers to install Calva.
+- The [Calva](https://marketplace.visualstudio.com/items?itemName=betterthantomorrow.calva) extension, to connect to the REPL. 
 
 ## Usage
 
@@ -60,142 +62,57 @@ This extension isn't published to the Marketplace; install it from a built
    fact base for all open Java projects. Runs automatically on project open;
    use this after large offline changes (e.g. a git checkout) to force a
    full rebuild.
-3. **Ekeko: Start REPL** (command palette) — starts an nREPL server inside
-   the JDT Language Server process, writes a `.nrepl-port` file (the
-   standard file Calva auto-detects) to the workspace root, and connects
+3. **Ekeko: Start REPL** (command palette) — starts an Ekeko nREPL server and connects
    Calva to it automatically, opening a classic prompted REPL window
    (`clj:user:>`) docked as a column on the right, beside the code editor.
    From here you can evaluate any Clojure code with full access to the live
-   project's AST, exactly as in the Eclipse plugin. For example:
+   project's AST. The example depicted below finds all method declarations
+   in the opened project:
    ```clojure
    (require 'damp.ekeko)
    (in-ns 'damp.ekeko)
    (count (ekeko [?m] (ast :MethodDeclaration ?m)))
    ```
-   **Ekeko: Stop REPL** stops the server and removes `.nrepl-port` again.
-4. **Running a query and seeing results.** There are two ways to see a
-   query's results in the **Ekeko** panel (bottom panel area, next to
-   Problems/Output/Terminal — drag it to the secondary/right sidebar if you
-   prefer, via VS Code's own "Move View"/"Move Panel to Secondary Side Bar"):
-   - Evaluate `(ekeko* ...)` or `(ekeko-n* n ...)` at the connected REPL —
-     the same macros the Eclipse plugin's Barista view responds to — and the
-     Ekeko panel pops open automatically with the result table. This is the
+   **Ekeko: Stop REPL** stops the server.
+5. **Running a query and seeing results.** Tosee a
+   query's results in the **Ekeko** panel: evaluate `(ekeko* ...)` or `(ekeko-n* n ...)` at the connected REPL —
+     and the Ekeko panel pops open automatically with the result table. This is the
      primary, REPL-native way to query.
-   - Or run **Ekeko: Run Query** (command palette) without a REPL running:
-     it reads the query from your active editor's selection, or prompts for
-     one, and shows the same table.
 
    In the results table, one column per query variable: cells that resolved
    to a real AST element (a method, type, statement, ...) render as
-   clickable links — click one to open its source file and select exactly
+   clickable links — click one to open its source file at exactly
    that range. Other cells (strings, numbers, booleans, `nil`, ...) render
    as plain text.
-5. **Loading your own scripts.** Ekeko scripts are just `.clj` files
+6. **Loading your own scripts.** Ekeko scripts are just `.clj` files
    anywhere in your open workspace. Open one and run Calva's own **"Load/
    Evaluate Current File (and its Requires/Dependencies)"** command (command
    palette, or `Ctrl+Alt+C Enter`) to load it into the connected REPL —
    functions and vars it defines become callable from the REPL immediately
-   afterward. No Ekeko-specific "load script" command is needed for this;
-   Calva already covers it for any Clojure file.
-6. **Autocomplete and diagnostics for Ekeko symbols in Calva.** The first
-   time a Java file is opened, Ekeko writes two files so `clojure-lsp`
-   (which powers Calva's autocomplete and red-squiggle diagnostics)
-   recognizes Ekeko/`core.logic` symbols, then restarts Clojure LSP
-   automatically (a status-bar message notes when this happens) so both
-   take effect immediately — a one-time thing per workspace, and low-risk
-   enough not to ask first:
-   - `.lsp/config.edn` points `clojure-lsp` at Ekeko's own `.clj` source
-     and its `core.logic`/`qwal` dependencies, none of which are
-     otherwise discoverable from a plain Java project (no `deps.edn`/
-     `project.clj` names them).
-   - `.clj-kondo/config.edn` maps `ekeko`/`ekeko*`/`ekeko-n*` onto
-     `clojure.core/fn`'s binding shape via `:lint-as`, so logic variables
-     like `?m` in `(ekeko [?m] ...)` are recognized as real bindings
-     instead of showing as unresolved (clj-kondo doesn't execute our
-     macros to see that they expand to `core.logic`'s `fresh`).
+   afterward. 
+   
+## License  
 
-   If symbols still don't resolve right after, run **Calva: Restart
-   Clojure LSP** yourself once more; that only happens if Clojure LSP had
-   already started (and done its one-time classpath scan) *before*
-   Ekeko's own activation could write these files — a startup race
-   between two independent extensions, not something either side can
-   fully avoid.
+Copyright © 2012-2026 Ekeko contributors: 
 
-   For the classpath part to work, write scripts with an explicit `ns`
-   form rather than the `(in-ns 'damp.ekeko)` shorthand shown above:
-   `in-ns` switches namespaces at *runtime*, which clj-kondo (a static
-   analyzer) can't follow, so symbols brought in that way still show as
-   unresolved even though they work fine at the REPL. Prefer:
-   ```clojure
-   (ns my-script
-     (:require [damp.ekeko :refer :all]
-               [damp.ekeko.jdt.ast :refer :all]))
+* [Coen De Roover](http://soft.vub.ac.be/~cderoove/): initial design, implementation and documentation
+ 
+* [Carlos Noguera](http://soft.vub.ac.be/soft/members/carlosnoguera): Barista graphical [user interface](http://soft.vub.ac.be/SOUL/home/querying-from-eclipse/running-and-inspecting-a-query/)
 
-   (ekeko [?m] (ast :MethodDeclaration ?m))
-   ```
-   Add further `damp.ekeko.jdt.*` namespaces (`structure`, `aststructure`,
-   `convenience`, `rewrites`) the same way for the relations they define
-   (`has`, `child`, and friends).
+* [Reinout Stevens](http://soft.vub.ac.be/soft/members/reinoutstevens): damp.ekeko.workspace.reification 
+  
+* [Bram Vandenbogaerde](https://vdb.space): damp.ekeko.jdtls.plugin
 
-## Architecture
+Distributed under the Eclipse Public License.
 
-- `src/` — the VS Code extension itself (TypeScript): activation and
-  commands (`extension.ts`), REPL start/stop + `.nrepl-port` writing +
-  Calva wiring (`repl.ts`), the query-input command (`queryRunner.ts`), the
-  results view (`resultsPanel.ts` + `media/results.{js,css}`, a
-  `WebviewViewProvider` docked in the bottom Panel area), and the
-  `.lsp/config.edn` classpath setup for Calva's autocomplete/diagnostics
-  (`lsp.ts`; see "Autocomplete and diagnostics" above).
-- `server/` — where the built jdt.ls-side OSGi bundle jar
-  (`damp.ekeko.jdtls.jar`) is staged for packaging, plus `lint-libs/`
-  (plain, non-nested copies of `core.logic`/`qwal`, which `lsp.ts` also
-  points `clojure-lsp` at — the bundle jar only embeds those two as
-  *nested* jars on its own OSGi classpath, which `clj-kondo` can't see
-  into). Not committed here (see `.gitignore`), produced by
-  `scripts/build-server.sh` from the `damp.ekeko.jdtls` Maven module.
-- `scripts/build-server.sh` — builds `damp.ekeko.jdtls` and copies its
-  output jar into `server/`. Run this (or `npm run build-server`) before
-  packaging or testing the extension.
-- `spike/` — a standalone compatibility spike validating that `damp.ekeko`'s
-  JDT-coupled query relations work against the newer JDT core bundled with
-  current `eclipse.jdt.ls`/`redhat.java` releases (Phase 0 of the port; see
-  `spike/FINDINGS.md`).
+Ekeko stands on the shoulders of open source giants.    
+Included dependencies:
 
-## Relationship to the provided projects
+* Clojure's applicative logic programming library [core.logic](https://github.com/clojure/core.logic/) (Eclipse Public License)
+* [Reinout Stevens](http://soft.vub.ac.be/soft/members/reinoutstevens)' regular path expression library [damp.qwal](https://github.com/ReinoutStevens/damp.qwal 
+) (Eclipse Public License)
+* The intra-procedural JDT-based control flow graph of the Crystal static  analysis framework [edu.cmu.cs.crystal.cfg.eclipse](https://code.google.com/p/crystalsaf/) (LGPL)
+* [Tim Molderez](http://ansymo.ua.ac.be/people/tim-molderez)' Clojure/Java object inspector [Inspector Jay](https://github.com/timmolderez/inspector-jay) (BSD 3-Clause license) 
+* Sable's Java Optimization Framework [Soot](http://www.sable.mcgill.ca/soot/
+) (LGPL)
 
-This repository holds the VS Code extension only. The jdt.ls-side OSGi
-bundle it contributes (`damp.ekeko.jdtls`, including the delegate command
-handlers, the nREPL controller, and this bundle's own
-`damp.ekeko.gui`/`EkekoResultsBridge` that push REPL query results here —
-see that module's own README) lives in the sibling `damp.ekeko` repository
-as its own Maven module, building directly against `damp.ekeko.plugin`'s
-own source — see that repository's `GOAL.md` for the full rationale and the
-list of changes made there to support this. This repository never modifies
-`damp.ekeko` or `eclipse.jdt.ls`; the latter is only built locally (via
-`damp.ekeko.jdtls`'s own tooling) to develop and test against the JDT core
-jars it needs.
-
-## Building
-
-Requires Node.js/npm, a JDK 21, and Maven (or its wrapper — see
-`damp.ekeko.jdtls/install-local-deps.sh`) to build the jdt.ls-side bundle;
-`redhat.java` must already be installed once, since the bundle build reuses
-JDT jars extracted from it.
-
-```sh
-npm install
-npm run build-server   # builds damp.ekeko.jdtls and stages its jar in server/
-npm run compile        # compiles the extension's TypeScript
-npx vsce package --allow-missing-repository   # produces a .vsix
-```
-
-Install the resulting `.vsix` as described above to try it.
-
-## Status
-
-All of the goal's four capabilities are implemented and verified end to
-end: rebuilding the fact base, the REPL, the results table with
-jump-to-source, and loading scripts (via Calva's own file-evaluation
-commands — see "Loading your own scripts" above). See `TASKS.md` for the
-detailed, phase-by-phase task checklist and verification notes, and
-`/home/bram/ekeko/GOAL.md` for the overall project status.
