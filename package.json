@@ -1,9 +1,9 @@
 {
   "name": "ekeko",
   "displayName": "Ekeko",
-  "description": "Query and explore Java code with Ekeko's logic-programming query engine, running inside the JDT Language Server.",
+  "description": "Query and explore Java code with Ekeko's logic-programming query engine,.",
   "version": "0.0.1",
-  "publisher": "ekeko",
+  "publisher": "vdb",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -16,7 +16,8 @@
   ],
   "main": "./out/extension.js",
   "extensionDependencies": [
-    "redhat.java"
+    "redhat.java",
+    "betterthantomorrow.calva"
   ],
   "contributes": {
     "javaExtensions": [
@@ -54,11 +55,6 @@
       {
         "command": "ekeko.command.stopRepl",
         "title": "Stop REPL",
-        "category": "Ekeko"
-      },
-      {
-        "command": "ekeko.command.runQuery",
-        "title": "Run Query",
         "category": "Ekeko"
       }
     ]

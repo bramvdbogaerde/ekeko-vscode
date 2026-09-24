@@ -6,22 +6,6 @@ Its libraries provide support for answering program queries (e.g., "*is my code 
 
 Ekeko is based on the excellent [core.logic](https://github.com/clojure/core.logic) port to [Clojure](http://clojure.org/) of the applicative logic programming library [Kanren](http://kanren.sourceforge.net/).
 
-## Installation
-Install the prebuilt Ekeko plugin from the Eclipse update site: 
-[http://soft.vub.ac.be/~cderoove/eclipse/](http://soft.vub.ac.be/~cderoove/eclipse/) 
-
-Ensure plugin dependency [Counterclockwise](http://code.google.com/p/counterclockwise/) is installed (e.g., from its update site found at [http://updatesite.ccw-ide.org/stable/](http://updatesite.ccw-ide.org/stable/)).
-
-Using the optional [damp.ekeko.visualizer](https://github.com/cderoove/damp.ekeko/tree/master/damp.ekeko.visualizer.plugin) extension requires dependency [Zest](http://www.eclipse.org/gef/zest/) to be installed (e.g., from its update site found at [http://download.eclipse.org/tools/gef/updates/releases/](http://download.eclipse.org/tools/gef/updates/releases/)).
-
-See [Installing New Software](http://help.eclipse.org/juno/topic/org.eclipse.platform.doc.user/tasks/tasks-124.htm) for help on installing Eclipse plugins from an update site. 
-
-Ekeko has been tested against [Eclipse Luna (4.4)](http://www.eclipse.org)
-
-Alternatively, the plugin can also be built from the [damp.ekeko.plugin](https://github.com/cderoove/damp.ekeko/tree/master/damp.ekeko.plugin) project in this repository. Its current build status is:
-
-[![Build Status](https://travis-ci.org/cderoove/damp.ekeko.svg?branch=master)](https://travis-ci.org/cderoove/damp.ekeko)
-
 ## Documentation
 
 See the [damp.ekeko wiki](https://github.com/cderoove/damp.ekeko/wiki) for information on:  
@@ -37,7 +21,7 @@ See the following publication for the motivation behind Ekeko and possible appli
 > Proceedings of the IEEE CSMR-WCRE 2014 Software Evolution Week (CSMR-WCRE14), Tool Demo Track, Antwerp (Belgium)
 
 There is also a screencast accompanying this publication:
-[![Ekeko Demonstration](http://img.youtube.com/vi/cPehkX5MvFg/0.jpg)](https://www.youtube.com/watch?v=cPehkX5MvFg)
+[![Ekeko Demonstration](https://img.youtube.com/vi/cPehkX5MvFg/0.jpg)](https://www.youtube.com/watch?v=cPehkX5MvFg)
 
 ## Requirements
 
