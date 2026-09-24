@@ -22,7 +22,6 @@ if [ ! -x "$MVN" ]; then
 fi
 
 cd "$JDTLS_BUNDLE_DIR"
-./install-local-deps.sh
 "$MVN" -q -f pom.xml verify
 
 BUILT_JAR="$(ls target/damp.ekeko.jdtls-*.jar | grep -v sources | head -1)"
