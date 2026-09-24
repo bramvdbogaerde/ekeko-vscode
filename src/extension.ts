@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { startRepl, stopRepl } from './repl';
-import { runQuery } from './queryRunner';
 import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
 import { ensureClojureLspClasspath } from './lsp';
 
@@ -16,7 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('ekeko.command.rebuildModel', rebuildModel),
     vscode.commands.registerCommand('ekeko.command.startRepl', startRepl),
     vscode.commands.registerCommand('ekeko.command.stopRepl', stopRepl),
-    vscode.commands.registerCommand('ekeko.command.runQuery', () => runQuery(resultsView)),
     // Not a client-side passthrough of a server-advertised executeCommand
     // id (see the note above) -- this is the server pushing to us, via a
     // workspace/notify notification (damp.ekeko.jdtls.EkekoResultsBridge,
