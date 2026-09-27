@@ -22,7 +22,7 @@ if [ ! -x "$MVN" ]; then
 fi
 
 cd "$JDTLS_BUNDLE_DIR"
-"$MVN" -q -f pom.xml verify
+"$MVN" -f pom.xml verify
 
 BUILT_JAR="$(ls target/damp.ekeko.jdtls-*.jar | grep -v sources | head -1)"
 if [ -z "$BUILT_JAR" ]; then
