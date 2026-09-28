@@ -55,3 +55,9 @@ a.code-cell:hover {
 span.value-cell {
   white-space: pre;
 }
+
+span.wrapped-sign {
+    vertical-align: super;
+    font-size: 6pt;
+    color: red;
+}

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 export interface ResultCell {
-  kind: 'code' | 'value';
+  kind: 'code' | 'value' | 'wrapped-value';
   text: string;
   uri?: string;
   startOffset?: number;

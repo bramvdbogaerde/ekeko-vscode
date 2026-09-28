@@ -26,6 +26,9 @@
         escapeHtml(cell.text) +
         '</a>'
       );
+    } 
+    if (cell.kind == 'wrapped-value') {
+        return '<span class="value-cell">' + escapeHtml(cell.text) + '<span class="wrapped-sign" >*</span></span>';
     }
     return '<span class="value-cell">' + escapeHtml(cell.text) + '</span>';
   }
@@ -47,7 +50,15 @@
     if (typeof result.elapsedMs === 'number') {
       text += ' (' + result.elapsedMs.toFixed(1) + ' ms)';
     }
-    status.textContent = text;
+    // The footnote is markup, so build the status line as HTML -- with the
+    // query (user-supplied) escaped, since it goes in verbatim above.
+    let statusHtml = escapeHtml(text);
+    const hasWrappedValue = rows.some((row) => row.some((cell) => cell.kind === 'wrapped-value'));
+    if (hasWrappedValue) {
+      statusHtml +=
+        "<br/><span class='wrapped-sign'>*</span> = unwrapped version of the value is shown";
+    }
+    status.innerHTML = statusHtml;
 
     let html = '<table><thead><tr>';
     for (const v of vars) {
