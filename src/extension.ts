@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { startRepl, stopRepl } from './repl';
 import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
-import { ensureClojureLspClasspath } from './lsp';
 
 // Registered under distinct ids (not the raw server command ids, e.g.
 // 'ekeko.rebuildModel') because the LSP client library used by redhat.java
@@ -13,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(EkekoResultsViewProvider.viewType, resultsView),
     vscode.commands.registerCommand('ekeko.command.rebuildModel', rebuildModel),
-    vscode.commands.registerCommand('ekeko.command.startRepl', startRepl),
+    vscode.commands.registerCommand('ekeko.command.startRepl', () => startRepl(context)),
     vscode.commands.registerCommand('ekeko.command.stopRepl', stopRepl),
     // Not a client-side passthrough of a server-advertised executeCommand
     // id (see the note above) -- this is the server pushing to us, via a
@@ -26,14 +25,6 @@ export function activate(context: vscode.ExtensionContext) {
       resultsView.reveal(payload)
     )
   );
-
-  // Fire-and-forget: sets up .lsp/config.edn so Calva's autocomplete/
-  // diagnostics recognize Ekeko/core.logic symbols. Not on the critical
-  // activation path (a couple of small file reads/writes at most), and
-  // failures here shouldn't block the extension's other commands.
-  ensureClojureLspClasspath(context).catch((err) => {
-    console.error('Ekeko: failed to set up clojure-lsp classpath', err);
-  });
 }
 
 async function rebuildModel(): Promise<void> {

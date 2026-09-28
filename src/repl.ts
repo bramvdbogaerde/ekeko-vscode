@@ -1,13 +1,24 @@
 import * as vscode from 'vscode';
+import { ensureClojureLspClasspath } from './lsp';
 
 const CALVA_EXTENSION_ID = 'betterthantomorrow.calva';
 const NREPL_PORT_FILE = '.nrepl-port';
 
-export async function startRepl(): Promise<void> {
+export async function startRepl(context: vscode.ExtensionContext): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
     vscode.window.showWarningMessage('Ekeko: open a folder before starting the REPL.');
     return;
+  }
+
+  // Set up the editor tooling here,
+  // this is where the user actually asks for Ekeko. Before Calva connects, so
+  // the config is on disk when clojure-lsp starts. No-ops once up to date.
+  try {
+    await ensureClojureLspClasspath(context);
+  } catch (err) {
+    // Editor tooling only -- never block starting the REPL over it.
+    console.error('Ekeko: failed to set up clojure-lsp classpath', err);
   }
 
   let port: number | undefined;
@@ -47,6 +58,7 @@ export async function startRepl(): Promise<void> {
   vscode.window.showInformationMessage(`Ekeko: nREPL server started on port ${port}.`);
   await closeStaleReplWindow();
   await useReplWindowOutput();
+
   // Passing an explicit connect sequence name skips Calva's "Project
   // Type/Connect Sequence" quick pick (which would otherwise ask the user
   // to manually choose "Generic" every time): the Ekeko nREPL server isn't

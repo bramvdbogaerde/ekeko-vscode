@@ -1,41 +1,108 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-// clj-kondo/clojure-lsp (which power Calva's autocomplete and diagnostics)
-// only know about symbols they can find on a classpath they can inspect.
-// Ekeko's own .clj source is embedded as plain resources inside
-// damp.ekeko.jdtls.jar -- readable by clj-kondo directly, the same way it
-// reads any Clojure library dependency jar -- but nothing in an opened
-// Java project tells clj-kondo that jar exists (there's no deps.edn/
-// project.clj naming it; it's only ever loaded into jdt.ls's own OSGi
-// runtime). Without that, every Ekeko/core.logic symbol in a user's .clj
-// script shows up as an unresolved-symbol warning and gets no
-// autocomplete.
-//
-// Fix: write a .lsp/config.edn with a :project-specs entry pointing
-// clojure-lsp at a :classpath-cmd that just echoes the jars we want on the
-// classpath (the bundle jar, plus core.logic/qwal's plain jars, staged
-// separately by scripts/build-server.sh since those two are only embedded
-// as *nested* jars inside the OSGi bundle, which clj-kondo can't see
-// into). There is no plain static ":classpath" override key in
-// clojure-lsp despite that being the first thing one reaches for --
-// :project-specs/:classpath-cmd is the actual supported mechanism for "no
-// build tool describes my classpath" (verified against clojure-lsp's own
-// source: clojure-lsp.classpath/valid-project-spec? requires each entry's
-// :project-path to be a file that exists under the project root before
-// its :classpath-cmd is used at all -- ".lsp/config.edn" itself, which we
-// just wrote, always qualifies). Only works where a plain "echo" binary
-// is on PATH (Linux/macOS); Windows isn't handled here.
+// Ekeko's .clj source ships as plain resources inside
+// damp.ekeko.jdtls.jar, but nothing in an opened Java project tells
+// clj-kondo that jar exists, so every Ekeko symbol in a user's script is
+// reported unresolved. This points clojure-lsp at the jars via
+// .lsp/config.edn. in which key :project-specs/:classpath-cmd sets the the classpath.
 
-// Marks a file as ours: lets a later, fixed version of this module
-// recognize and replace a file an earlier (possibly buggy) version of
-// itself wrote, without touching a file the user wrote by hand. Bump the
-// trailing version tag whenever a generated shape changes in a way that
-// needs a fresh rewrite even if an already-tagged file is present (v1 of
-// .lsp/config.edn used a plain, non-functional ":classpath" key, for
-// example).
+// Marks a generated file as ours, so we replace our own earlier output but
+// never a hand-written file. Bump the version tag when a generated shape
+// changes.
 const MARKER_PREFIX = ';; Written by the Ekeko VS Code extension';
-const MARKER = `${MARKER_PREFIX} (v2) -- see lsp.ts.`;
+const MARKER = `${MARKER_PREFIX} (v4) -- see lsp.ts.`;
+
+// Match on this tail, not the jar's absolute path: VS Code installs into a
+// versioned directory (vdb.ekeko-0.0.1/), so an absolute path stops matching
+// after every extension upgrade.
+const BUNDLE_JAR_RELATIVE_PATH = ['server', 'damp.ekeko.jdtls.jar'];
+const BUNDLE_JAR_MARKER = BUNDLE_JAR_RELATIVE_PATH.join('/');
+
+// damp.ekeko re-exports these via (:use ...), but clj-kondo doesn't follow
+// :use re-exports, so each has to be referred directly. Keep in sync with
+// damp/ekeko.clj's ns form.
+const EKEKO_REFERRED_NAMESPACES = [
+  'damp.ekeko',
+  'damp.ekeko.logic',
+  'damp.ekeko.jdt.ast',
+  'damp.ekeko.jdt.structure',
+  'damp.ekeko.jdt.aststructure',
+  'damp.ekeko.jdt.convenience',
+  'damp.ekeko.jdt.rewrites',
+  'damp.qwal',
+  'clojure.core.logic',
+];
+
+// Hook source for .clj-kondo/hooks/damp/ekeko.clj, covering two things
+// :lint-as can't express:
+//
+// 1. (ekeko [?a ?b] goal ...) -- no built-in macro has that binding shape
+//    (clojure.core/fn leaves the vector's symbols unresolved, let rejects an
+//    odd-length vector). core.logic's own `fresh` has the same problem, hence
+//    the hook covers it too.
+// 2. Scripts use (use 'damp.ekeko) + (in-ns 'damp.ekeko) instead of an ns
+//    form. clj-kondo analyses such a file as `user`, ignores the in-ns, and
+//    -- because the file claims to *be* damp.ekeko -- overwrites the real
+//    damp.ekeko entry in its cache with the file's own vars.
+const HOOKS_NAMESPACE = 'hooks.damp.ekeko';
+const HOOKS_RELATIVE_PATH = ['hooks', 'damp', 'ekeko.clj'];
+const HOOKS_SOURCE = `${MARKER}
+(ns ${HOOKS_NAMESPACE}
+  (:require [clj-kondo.hooks-api :as api]))
+
+;; (ekeko [?a ?b] goal ...) -> (do ekeko (let [?a nil ?b nil] goal ...))
+;; The let resolves the logic variables; re-emitting the macro symbol keeps
+;; clojure-lsp colouring the call site as a macro rather than a function.
+(defn- rewrite-bindings [macro-sym vars-node body-nodes]
+  (when (api/vector-node? vars-node)
+    (let [pairs (mapcat (fn [v] [v (api/token-node nil)])
+                        (:children vars-node))]
+      (api/list-node
+       (list (api/token-node 'do)
+             macro-sym
+             (api/list-node
+              (list* (api/token-node 'let)
+                     (api/vector-node (vec pairs))
+                     body-nodes)))))))
+
+(defn ekeko [{:keys [node]}]
+  (let [[macro-sym vars & body] (:children node)]
+    (when-let [n (rewrite-bindings macro-sym vars body)]
+      {:node n})))
+
+;; ekeko-n* takes a solution count before the binding vector.
+(defn ekeko-n [{:keys [node]}]
+  (let [[macro-sym cnt vars & body] (:children node)]
+    (when-let [n (rewrite-bindings macro-sym vars body)]
+      {:node (api/list-node (list (api/token-node 'do) cnt n))})))
+
+;; (in-ns 'damp.ekeko) -> (require '[damp.ekeko :refer :all] ...)
+(defn in-ns->requires [_]
+  {:node (api/list-node
+          (list* (api/token-node 'clojure.core/require)
+                 (map (fn [ns-sym]
+                        (api/list-node
+                         (list (api/token-node 'quote)
+                               (api/vector-node
+                                [(api/token-node ns-sym)
+                                 (api/keyword-node :refer)
+                                 (api/keyword-node :all)]))))
+                      '[${EKEKO_REFERRED_NAMESPACES.join('\n                        ')}])))})
+`;
+
+const KONDO_CONFIG = `${MARKER}
+{:hooks {:analyze-call {damp.ekeko/ekeko          ${HOOKS_NAMESPACE}/ekeko
+                        damp.ekeko/ekeko*         ${HOOKS_NAMESPACE}/ekeko
+                        damp.ekeko/ekeko-n*       ${HOOKS_NAMESPACE}/ekeko-n
+                        clojure.core.logic/fresh  ${HOOKS_NAMESPACE}/ekeko
+                        clojure.core/in-ns        ${HOOKS_NAMESPACE}/in-ns->requires}}
+ ;; The in-ns hook's generated requires trip these on a line the user never
+ ;; wrote. unresolved-symbol stays on, so real typos are still reported.
+ :linters {:refer-all {:level :off}
+           :duplicate-require {:level :off}
+           :use {:level :off}}}
+`;
 
 export async function ensureClojureLspClasspath(context: vscode.ExtensionContext): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -48,47 +115,63 @@ export async function ensureClojureLspClasspath(context: vscode.ExtensionContext
     return;
   }
 
-  const classpathString = jarPaths.join(path.delimiter);
+  const classpathCmd = classpathEchoCommand(jarPaths.join(path.delimiter));
   const classpathWritten = await writeOwnedConfigFile(
     vscode.Uri.joinPath(folder.uri, '.lsp', 'config.edn'),
     `${MARKER}\n` +
       '{:project-specs [{:project-path ".lsp/config.edn"\n' +
-      `                   :classpath-cmd ["echo" ${ednString(classpathString)}]}]}\n`,
-    `Add this :classpath-cmd entry to its :project-specs vector yourself: ["echo" ${ednString(classpathString)}]`
+      `                   :classpath-cmd ${classpathCmd}}]}\n`,
+    `Add this :classpath-cmd entry to its :project-specs vector yourself: ${classpathCmd}`
   );
 
-  // ekeko/ekeko*/ekeko-n* bind their first (or, for ekeko-n*, second)
-  // argument as a core.logic `fresh` binding vector -- clj-kondo doesn't
-  // execute our macros to discover that, so every logic variable used in
-  // the body (e.g. ?m in (ekeko [?m] ...)) shows as unresolved even once
-  // the macro itself resolves. :lint-as maps them onto clojure.core/fn,
-  // whose own binding-vector shape clj-kondo already understands, so it
-  // treats [?m] as real parameter bindings instead. This is clj-kondo's
-  // own lint configuration, not clojure-lsp's -- it lives in a different
-  // file (.clj-kondo/config.edn) that clj-kondo reads directly, unlike
-  // the classpath override above.
-  const lintAsWritten = await writeOwnedConfigFile(
+  // clj-kondo's own lint configuration (a different file from the
+  // clojure-lsp classpath override above, read directly by clj-kondo): a
+  // hook teaching it the ekeko/ekeko*/ekeko-n* binding-vector shape and the
+  // use/in-ns script idiom. See HOOKS_SOURCE for why :lint-as can't do it.
+  const hookWritten = await writeOwnedConfigFile(
+    vscode.Uri.joinPath(folder.uri, '.clj-kondo', ...HOOKS_RELATIVE_PATH),
+    HOOKS_SOURCE,
+    `Put this hook at .clj-kondo/${HOOKS_RELATIVE_PATH.join('/')} yourself (see the extension's lsp.ts).`
+  );
+
+  const lintConfigWritten = await writeOwnedConfigFile(
     vscode.Uri.joinPath(folder.uri, '.clj-kondo', 'config.edn'),
-    `${MARKER}\n` +
-      '{:lint-as {damp.ekeko/ekeko clojure.core/fn\n' +
-      '           damp.ekeko/ekeko* clojure.core/fn\n' +
-      '           damp.ekeko/ekeko-n* clojure.core/fn}}\n',
-    'Add these entries to its :lint-as map yourself: {damp.ekeko/ekeko clojure.core/fn, ' +
-      'damp.ekeko/ekeko* clojure.core/fn, damp.ekeko/ekeko-n* clojure.core/fn}'
+    KONDO_CONFIG,
+    `Add this :hooks map to it yourself (see the extension's lsp.ts): ${HOOKS_NAMESPACE}`
   );
 
-  if (!classpathWritten && !lintAsWritten) {
-    return; // Both already set up correctly -- nothing changed.
+  // Two separate caches matter here, and they need very different treatment.
+  //
+  // Our config change invalidates clj-kondo's cached analysis (a file
+  // analysed before the in-ns hook existed leaves damp.ekeko cached as that
+  // file's own vars). Cheap to rebuild, so just drop it.
+  if (hookWritten || lintConfigWritten) {
+    try {
+      await vscode.workspace.fs.delete(
+        vscode.Uri.joinPath(folder.uri, '.clj-kondo', '.cache'),
+        { recursive: true, useTrash: false }
+      );
+    } catch {
+      // Not present (or not removable) -- nothing to invalidate.
+    }
   }
 
-  // A restart is only strictly necessary for the classpath change (which
-  // clojure-lsp resolves once at startup and doesn't watch config.edn for
-  // afterward -- a rescan means re-parsing every .clj file in every jar on
-  // the classpath); clj-kondo re-reads its own lint config per analysis
-  // pass, so :lint-as changes alone would likely take effect without one.
-  // We can't always tell which happened, and restarting is low-risk and
-  // one-time (this whole function no-ops on every later activation, once
-  // both files are up to date), so just do it rather than ask.
+  // clojure-lsp's db is project-wide, not ours to clear on principle -- but
+  // while it looks current clojure-lsp skips classpath discovery entirely, so
+  // it never indexes our jars and every symbol stays unresolved (clearing
+  // only .clj-kondo/.cache appears to fix that until the next reload). There
+  // is no re-index request to ask for instead, so invalidate it -- but only
+  // when it was built without our jars. See invalidateStaleLspDb.
+  if (classpathWritten) {
+    await invalidateStaleLspDb(folder.uri);
+  }
+
+  if (!classpathWritten && !hookWritten && !lintConfigWritten) {
+    return; // Everything already set up correctly -- nothing changed.
+  }
+
+  // clojure-lsp resolves the classpath once at startup and doesn't watch
+  // config.edn, so a restart is needed for that change to take effect.
   vscode.window.setStatusBarMessage(
     'Ekeko: updated .lsp/config.edn and restarted Clojure LSP so Calva recognizes Ekeko/core.logic symbols.',
     8000
@@ -136,10 +219,32 @@ async function writeOwnedConfigFile(
   return true;
 }
 
+// Deletes clojure-lsp's analysis db only if it was built without our bundle
+// jar; if it already mentions the jar it is left alone. Matching on
+// BUNDLE_JAR_MARKER rather than an absolute path means an extension upgrade
+// doesn't look stale and doesn't cost a re-index.
+async function invalidateStaleLspDb(folderUri: vscode.Uri): Promise<void> {
+  const dbUri = vscode.Uri.joinPath(folderUri, '.lsp', '.cache', 'db.transit.json');
+  let contents: string;
+  try {
+    contents = Buffer.from(await vscode.workspace.fs.readFile(dbUri)).toString('utf8');
+  } catch {
+    return; // No db yet -- clojure-lsp will do a full analysis anyway.
+  }
+  if (contents.includes(BUNDLE_JAR_MARKER)) {
+    return; // Already built with our classpath; not stale.
+  }
+  try {
+    await vscode.workspace.fs.delete(dbUri, { useTrash: false });
+  } catch {
+    // Not removable -- leave it; the user can restart Clojure LSP manually.
+  }
+}
+
 async function collectLintClasspathJars(context: vscode.ExtensionContext): Promise<string[]> {
   const paths: string[] = [];
 
-  const bundleJar = vscode.Uri.joinPath(context.extensionUri, 'server', 'damp.ekeko.jdtls.jar');
+  const bundleJar = vscode.Uri.joinPath(context.extensionUri, ...BUNDLE_JAR_RELATIVE_PATH);
   if (await fileExists(bundleJar)) {
     paths.push(bundleJar.fsPath);
   }
@@ -159,6 +264,21 @@ async function collectLintClasspathJars(context: vscode.ExtensionContext): Promi
   }
 
   return paths;
+}
+
+// The :classpath-cmd vector that prints `classpath` on stdout.
+//
+// clojure-lsp runs this with clojure.java.shell/sh, i.e. ProcessBuilder with
+// no shell,  On Windows `echo` is a cmd.exe builtin with no echo.exe on PATH, 
+// so it cannot be resolved or 
+// spawned and the classpath lookup fails outright; cmd.exe itself is a real
+// executable, so go through it there.
+function classpathEchoCommand(classpath: string): string {
+  if (process.platform !== 'win32') {
+    return `["echo" ${ednString(classpath)}]`;
+  }
+  const escaped = classpath.replace(/[&|<>^]/g, (ch) => `^${ch}`);
+  return `["cmd" "/c" "echo" ${ednString(escaped)}]`;
 }
 
 function ednString(value: string): string {
