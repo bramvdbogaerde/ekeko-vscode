@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 // never a hand-written file. Bump the version tag when a generated shape
 // changes.
 const MARKER_PREFIX = ';; Written by the Ekeko VS Code extension';
-const MARKER = `${MARKER_PREFIX} (v4) -- see lsp.ts.`;
+const MARKER = `${MARKER_PREFIX} (v5) -- see lsp.ts.`;
 
 // Match on this tail, not the jar's absolute path: VS Code installs into a
 // versioned directory (vdb.ekeko-0.0.1/), so an absolute path stops matching
@@ -94,6 +94,8 @@ const HOOKS_SOURCE = `${MARKER}
 const KONDO_CONFIG = `${MARKER}
 {:hooks {:analyze-call {damp.ekeko/ekeko          ${HOOKS_NAMESPACE}/ekeko
                         damp.ekeko/ekeko*         ${HOOKS_NAMESPACE}/ekeko
+                        clojure.core.logic/run*   ${HOOKS_NAMESPACE}/ekeko
+                        clojure.core.logic/run    ${HOOKS_NAMESPACE}/ekeko-n
                         damp.ekeko/ekeko-n*       ${HOOKS_NAMESPACE}/ekeko-n
                         clojure.core.logic/fresh  ${HOOKS_NAMESPACE}/ekeko
                         clojure.core/in-ns        ${HOOKS_NAMESPACE}/in-ns->requires}}
