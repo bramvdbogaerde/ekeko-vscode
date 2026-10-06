@@ -21,12 +21,24 @@ export function queryStarted(id: string, query: string): void {
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Ekeko: running query',
+        cancellable: true,
       },
-      (_progress) => {
+      (_progress, token) => {
+        token.onCancellationRequested(() => void cancelQuery(id));
         return finished;
       }
     );
   }, SHOW_AFTER_MS);
+}
+
+// Asks the server to interrupt the nREPL evaluation running the query; it
+// then reports it finished as usual.
+async function cancelQuery(id: string): Promise<void> {
+  try {
+    await vscode.commands.executeCommand('java.execute.workspaceCommand', 'ekeko.cancelQuery', id);
+  } catch (err) {
+    vscode.window.showErrorMessage(`Ekeko: failed to cancel query - ${err}`);
+  }
 }
 
 // Notified by the server when that query has finished, failed or been
