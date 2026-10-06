@@ -58,7 +58,7 @@ The following extensions will be installed alongside Ekeko:
    (count (ekeko [?m] (ast :MethodDeclaration ?m)))
    ```
    **Ekeko: Stop REPL** stops the server.
-5. **Running a query and seeing results.** Tosee a
+4. **Running a query and seeing results.** Tosee a
    query's results in the **Ekeko** panel: evaluate `(ekeko* ...)` or `(ekeko-n* n ...)` at the connected REPL —
      and the Ekeko panel pops open automatically with the result table. This is the
      primary, REPL-native way to query.
@@ -68,7 +68,7 @@ The following extensions will be installed alongside Ekeko:
    clickable links — click one to open its source file at exactly
    that range. Other cells (strings, numbers, booleans, `nil`, ...) render
    as plain text.
-6. **Loading your own scripts.** Ekeko scripts are just `.clj` files
+5. **Loading your own scripts.** Ekeko scripts are just `.clj` files
    anywhere in your open workspace. Open one and run Calva's own **"Load/
    Evaluate Current File (and its Requires/Dependencies)"** command (command
    palette, or `Ctrl+Alt+C Enter`) to load it into the connected REPL —

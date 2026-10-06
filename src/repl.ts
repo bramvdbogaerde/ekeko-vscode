@@ -5,72 +5,75 @@ const CALVA_EXTENSION_ID = 'betterthantomorrow.calva';
 const NREPL_PORT_FILE = '.nrepl-port';
 
 export async function startRepl(context: vscode.ExtensionContext): Promise<void> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    vscode.window.showWarningMessage('Ekeko: open a folder before starting the REPL.');
-    return;
-  }
+    const timeout = vscode.workspace.getConfiguration('ekeko').get<number>('queryTimeout');
 
-  // Set up the editor tooling here,
-  // this is where the user actually asks for Ekeko. Before Calva connects, so
-  // the config is on disk when clojure-lsp starts. No-ops once up to date.
-  try {
-    await ensureClojureLspClasspath(context);
-  } catch (err) {
-    // Editor tooling only -- never block starting the REPL over it.
-    console.error('Ekeko: failed to set up clojure-lsp classpath', err);
-  }
-
-  let port: number | undefined;
-  try {
-    port = await vscode.commands.executeCommand<number>(
-      'java.execute.workspaceCommand',
-      'ekeko.startRepl'
-    );
-  } catch (err) {
-    vscode.window.showErrorMessage(`Ekeko: failed to start REPL - ${err}`);
-    return;
-  }
-  if (typeof port !== 'number' || port <= 0) {
-    vscode.window.showErrorMessage('Ekeko: REPL did not start (no port returned).');
-    return;
-  }
-
-  await writePortFile(folder.uri, port);
-
-  const calva = vscode.extensions.getExtension(CALVA_EXTENSION_ID);
-  if (!calva) {
-    const install = 'Install Calva';
-    const choice = await vscode.window.showInformationMessage(
-      `Ekeko: nREPL server started on port ${port} (.nrepl-port written). ` +
-        'Install Calva to connect to it from an editor REPL.',
-      install
-    );
-    if (choice === install) {
-      await vscode.commands.executeCommand(
-        'workbench.extensions.installExtension',
-        CALVA_EXTENSION_ID
-      );
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+        vscode.window.showWarningMessage('Ekeko: open a folder before starting the REPL.');
+        return;
     }
-    return;
-  }
 
-  vscode.window.showInformationMessage(`Ekeko: nREPL server started on port ${port}.`);
-  await closeStaleReplWindow();
-  await useReplWindowOutput();
+    // Set up the editor tooling here.
+    try {
+        await ensureClojureLspClasspath(context);
+    } catch (err) {
+        // Editor tooling only -- never block starting the REPL over it.
+        console.error('Ekeko: failed to set up clojure-lsp classpath', err);
+    }
 
-  // Passing an explicit connect sequence name skips Calva's "Project
-  // Type/Connect Sequence" quick pick (which would otherwise ask the user
-  // to manually choose "Generic" every time): the Ekeko nREPL server isn't
-  // tied to a Leiningen/deps.edn/shadow-cljs project, so "Generic" -
-  // connect straight to the host/port in .nrepl-port - is always correct
-  // here.
-  await vscode.commands.executeCommand('calva.connect', { connectSequence: 'Generic' });
-  await positionReplWindowAtRight();
+    // instruct Ekeko running inside JDTLS to start the NRepl server
+    let port: number | undefined;
+    try {
+        port = await vscode.commands.executeCommand<number>(
+            'java.execute.workspaceCommand',
+            'ekeko.startRepl',
+            timeout
+        );
+    } catch (err) {
+        vscode.window.showErrorMessage(`Ekeko: failed to start REPL - ${err}`);
+        return;
+    }
+    if (typeof port !== 'number' || port <= 0) {
+        vscode.window.showErrorMessage('Ekeko: REPL did not start (no port returned).');
+        return;
+    }
+
+    await writePortFile(folder.uri, port);
+
+    // Connect to the NRepl server.
+    const calva = vscode.extensions.getExtension(CALVA_EXTENSION_ID);
+    if (!calva) {
+        const install = 'Install Calva';
+        const choice = await vscode.window.showInformationMessage(
+            `Ekeko: nREPL server started on port ${port} (.nrepl-port written). ` +
+            'Install Calva to connect to it from an editor REPL.',
+            install
+        );
+        if (choice === install) {
+            await vscode.commands.executeCommand(
+                'workbench.extensions.installExtension',
+                CALVA_EXTENSION_ID
+            );
+        }
+        return;
+    }
+
+    vscode.window.showInformationMessage(`Ekeko: nREPL server started on port ${port}.`);
+    await closeStaleReplWindow();
+    await useReplWindowOutput();
+
+    // Passing an explicit connect sequence name skips Calva's "Project
+    // Type/Connect Sequence" quick pick (which would otherwise ask the user
+    // to manually choose "Generic" every time): the Ekeko nREPL server isn't
+    // tied to a Leiningen/deps.edn/shadow-cljs project, so "Generic" -
+    // connect straight to the host/port in .nrepl-port - is always correct
+    // here.
+    await vscode.commands.executeCommand('calva.connect', { connectSequence: 'Generic' });
+    await positionReplWindowAtRight();
 }
 
 function isReplWindowTab(tab: vscode.Tab): boolean {
-  return tab.input instanceof vscode.TabInputText && tab.input.uri.path.endsWith('repl.calva-repl');
+    return tab.input instanceof vscode.TabInputText && tab.input.uri.path.endsWith('repl.calva-repl');
 }
 
 // The repl-window is a real file (.calva/repl.calva-repl), so VS Code
@@ -80,10 +83,10 @@ function isReplWindowTab(tab: vscode.Tab): boolean {
 // such leftover tab before reconnecting so each "Start REPL" begins from a
 // clean, unambiguous state instead of reusing whatever was left open.
 async function closeStaleReplWindow(): Promise<void> {
-  const staleTabs = vscode.window.tabGroups.all.flatMap((group) => group.tabs.filter(isReplWindowTab));
-  if (staleTabs.length > 0) {
-    await vscode.window.tabGroups.close(staleTabs);
-  }
+    const staleTabs = vscode.window.tabGroups.all.flatMap((group) => group.tabs.filter(isReplWindowTab));
+    if (staleTabs.length > 0) {
+        await vscode.window.tabGroups.close(staleTabs);
+    }
 }
 
 // Calva opens the repl-window document beside whatever was already active,
@@ -94,22 +97,22 @@ async function closeStaleReplWindow(): Promise<void> {
 // touching which tabs are in which group) into side-by-side columns,
 // keeping the repl-window's group on the right.
 async function positionReplWindowAtRight(): Promise<void> {
-  const groups = vscode.window.tabGroups.all;
-  // Only re-arrange the layout for the specific shape Calva just created
-  // (the user's original editor group, plus the new repl-window group
-  // beside it); if the user already had a more complex split, leave it
-  // alone rather than fight their existing layout.
-  if (groups.length !== 2) {
-    return;
-  }
-  const hasReplWindowTab = groups.some((group) => group.tabs.some(isReplWindowTab));
-  if (!hasReplWindowTab) {
-    return;
-  }
-  await vscode.commands.executeCommand('vscode.setEditorLayout', {
-    orientation: 0, // side-by-side columns instead of stacked rows
-    groups: [{ size: 0.65 }, { size: 0.35 }],
-  });
+    const groups = vscode.window.tabGroups.all;
+    // Only re-arrange the layout for the specific shape Calva just created
+    // (the user's original editor group, plus the new repl-window group
+    // beside it); if the user already had a more complex split, leave it
+    // alone rather than fight their existing layout.
+    if (groups.length !== 2) {
+        return;
+    }
+    const hasReplWindowTab = groups.some((group) => group.tabs.some(isReplWindowTab));
+    if (!hasReplWindowTab) {
+        return;
+    }
+    await vscode.commands.executeCommand('vscode.setEditorLayout', {
+        orientation: 0, // side-by-side columns instead of stacked rows
+        groups: [{ size: 0.65 }, { size: 0.35 }],
+    });
 }
 
 // Recent Calva versions default to routing eval results/output to a
@@ -122,43 +125,43 @@ async function positionReplWindowAtRight(): Promise<void> {
 // so "Ekeko: Start REPL" lands users in a familiar prompted REPL rather than
 // the promptless default.
 async function useReplWindowOutput(): Promise<void> {
-  const config = vscode.workspace.getConfiguration('calva');
-  await config.update('autoOpenREPLWindow', true, vscode.ConfigurationTarget.Workspace);
-  await config.update(
-    'outputDestinations',
-    {
-      evalResults: ['repl-window'],
-      evalOutput: ['repl-window'],
-      otherOutput: ['repl-window'],
-    },
-    vscode.ConfigurationTarget.Workspace
-  );
+    const config = vscode.workspace.getConfiguration('calva');
+    await config.update('autoOpenREPLWindow', true, vscode.ConfigurationTarget.Workspace);
+    await config.update(
+        'outputDestinations',
+        {
+            evalResults: ['repl-window'],
+            evalOutput: ['repl-window'],
+            otherOutput: ['repl-window'],
+        },
+        vscode.ConfigurationTarget.Workspace
+    );
 }
 
 export async function stopRepl(): Promise<void> {
-  try {
-    await vscode.commands.executeCommand('java.execute.workspaceCommand', 'ekeko.stopRepl');
-  } catch (err) {
-    vscode.window.showErrorMessage(`Ekeko: failed to stop REPL - ${err}`);
-    return;
-  }
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (folder) {
-    await deletePortFile(folder.uri);
-  }
-  vscode.window.showInformationMessage('Ekeko: nREPL server stopped.');
+    try {
+        await vscode.commands.executeCommand('java.execute.workspaceCommand', 'ekeko.stopRepl');
+    } catch (err) {
+        vscode.window.showErrorMessage(`Ekeko: failed to stop REPL - ${err}`);
+        return;
+    }
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (folder) {
+        await deletePortFile(folder.uri);
+    }
+    vscode.window.showInformationMessage('Ekeko: nREPL server stopped.');
 }
 
 async function writePortFile(folderUri: vscode.Uri, port: number): Promise<void> {
-  const uri = vscode.Uri.joinPath(folderUri, NREPL_PORT_FILE);
-  await vscode.workspace.fs.writeFile(uri, Buffer.from(String(port), 'utf8'));
+    const uri = vscode.Uri.joinPath(folderUri, NREPL_PORT_FILE);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(String(port), 'utf8'));
 }
 
 async function deletePortFile(folderUri: vscode.Uri): Promise<void> {
-  const uri = vscode.Uri.joinPath(folderUri, NREPL_PORT_FILE);
-  try {
-    await vscode.workspace.fs.delete(uri);
-  } catch {
-    // Already gone; nothing to do.
-  }
+    const uri = vscode.Uri.joinPath(folderUri, NREPL_PORT_FILE);
+    try {
+        await vscode.workspace.fs.delete(uri);
+    } catch {
+        // Already gone; nothing to do.
+    }
 }

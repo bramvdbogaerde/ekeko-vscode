@@ -2,6 +2,25 @@ import * as vscode from 'vscode';
 import { startRepl, stopRepl } from './repl';
 import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
 
+// nREPL can only forcibly stop an evaluation that ignores Thread.interrupt
+// (e.g. one timed out via the ekeko.queryTimeout setting) when the JVM
+// it runs in -- jdt.ls -- may attach an agent to itself. Adds the flag
+// allowing that to the user's jdt.ls VM arguments; it takes effect the next
+// time jdt.ls starts.
+async function ensureJVMArgs(): Promise<void> {
+  const FLAG = '-Djdk.attach.allowAttachSelf=true';
+  const cfg = vscode.workspace.getConfiguration('java');
+  const current = cfg.get<string>('jdt.ls.vmargs') ?? '';
+  if (current.includes(FLAG)) {
+    return;
+  }
+  try {
+    await cfg.update('jdt.ls.vmargs', `${current} ${FLAG}`.trim(), vscode.ConfigurationTarget.Global);
+  } catch (err) {
+    console.error('Ekeko: failed to update java.jdt.ls.vmargs', err);
+  }
+}
+
 // Registered under distinct ids (not the raw server command ids, e.g.
 // 'ekeko.rebuildModel') because the LSP client library used by redhat.java
 // auto-registers a client-side passthrough command under that exact name
@@ -25,6 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
       resultsView.reveal(payload)
     )
   );
+  void ensureJVMArgs();
 }
 
 async function rebuildModel(): Promise<void> {
