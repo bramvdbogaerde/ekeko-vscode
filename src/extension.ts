@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { startRepl, stopRepl } from './repl';
+import { queryFinished, queryStarted } from './queryProgress';
 import { EkekoResultsViewProvider, QueryResult } from './resultsPanel';
 
 // nREPL can only forcibly stop an evaluation that ignores Thread.interrupt
@@ -42,7 +43,10 @@ export function activate(context: vscode.ExtensionContext) {
     // Barista results view for the same two macros.
     vscode.commands.registerCommand('ekeko.showResults', (payload: QueryResult) =>
       resultsView.reveal(payload)
-    )
+    ),
+    // Likewise pushed by the server around each of those queries.
+    vscode.commands.registerCommand('ekeko.queryStarted', queryStarted),
+    vscode.commands.registerCommand('ekeko.queryFinished', queryFinished)
   );
   void ensureJVMArgs();
 }

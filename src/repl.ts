@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ensureClojureLspClasspath } from './lsp';
+import { clearQueryProgress } from './queryProgress';
 
 const CALVA_EXTENSION_ID = 'betterthantomorrow.calva';
 const NREPL_PORT_FILE = '.nrepl-port';
@@ -145,6 +146,7 @@ export async function stopRepl(): Promise<void> {
         vscode.window.showErrorMessage(`Ekeko: failed to stop REPL - ${err}`);
         return;
     }
+    clearQueryProgress();
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (folder) {
         await deletePortFile(folder.uri);
