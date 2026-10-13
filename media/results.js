@@ -5,6 +5,9 @@
   const showClassToggle = document.getElementById('show-class-tooltips');
   const hideDuplicatesToggle = document.getElementById('hide-duplicates');
   const hover = document.getElementById('hover');
+  const queryArea = document.getElementById('query');
+  const queryCode = document.getElementById('query-code');
+  const legend = document.getElementById('legend');
 
   // The last result rendered, to re-render when a toggle changes, and the
   // toggles' settings, kept in the webview's state so they survive the view
@@ -103,10 +106,25 @@
     table.classList.add('fixed-columns');
   }
 
+  // The query of the result, in the collapsible area below the status line,
+  // highlighted by the extension (see resultsPanel.ts) or else shown as is.
+  // The area keeps whether it is expanded from one result to the next.
+  function renderQuery(result) {
+    if (!result || !result.query) {
+      queryArea.hidden = true;
+      queryCode.innerHTML = '';
+      return;
+    }
+    queryCode.innerHTML = result.queryHtml || '<pre><code>' + escapeHtml(result.query) + '</code></pre>';
+    queryArea.hidden = false;
+  }
+
   function render(result) {
     const widths = result === lastResult ? resizedColumnWidths() : null;
     lastResult = result;
     hideHover();
+    renderQuery(result);
+    legend.hidden = true;
     if (!result) {
       status.textContent = 'Run an Ekeko query to see results here.';
       container.innerHTML = '';
@@ -120,28 +138,27 @@
     const vars = result.vars || [];
     const allRows = result.rows || [];
     const rows = hideDuplicatesToggle.checked ? withoutDuplicates(allRows) : allRows;
-    let text = rows.length + ' result' + (rows.length === 1 ? '' : 's') + ' for ' + result.query;
+    let text = 'Found ' + rows.length + ' result' + (rows.length === 1 ? '' : 's');
+    if (typeof result.elapsedMs === 'number') {
+      text += ' in ' + result.elapsedMs.toFixed(1) + ' ms';
+    }
     const hidden = allRows.length - rows.length;
     if (hidden > 0) {
       text += ' (' + hidden + ' duplicate' + (hidden === 1 ? '' : 's') + ' hidden)';
     }
-    if (typeof result.elapsedMs === 'number') {
-      text += ' (' + result.elapsedMs.toFixed(1) + ' ms)';
-    }
-    // The footnote is markup, so build the status line as HTML -- with the
-    // query (user-supplied) escaped, since it goes in verbatim above.
-    let statusHtml = escapeHtml(text);
-    const hasWrappedValue = rows.some((row) => row.some((cell) => cell.kind === 'wrapped-value'));
-    if (hasWrappedValue) {
-      statusHtml +=
-        "<br/><span class='wrapped-sign'>*</span> = unwrapped version of the value is shown";
-    }
-    status.innerHTML = statusHtml;
+    status.textContent = text;
+    legend.hidden = !rows.some((row) => row.some((cell) => cell.kind === 'wrapped-value'));
 
     let html = '<table><thead><tr>';
-    for (const v of vars) {
-      html += '<th>' + escapeHtml(v) + '<div class="column-resizer"></div></th>';
-    }
+    // Each border between two columns gets a handle on both sides of it,
+    // both resizing the column on its left, so it is easy to grab.
+    vars.forEach((v, i) => {
+      html += '<th>';
+      if (i > 0) {
+        html += '<div class="column-resizer left"></div>';
+      }
+      html += escapeHtml(v) + '<div class="column-resizer right"></div></th>';
+    });
     html += '</tr></thead><tbody>';
     for (const row of rows) {
       html += '<tr>';
@@ -183,7 +200,9 @@
     }
     event.preventDefault();
     hideHover();
-    const th = resizer.parentElement;
+    const th = resizer.classList.contains('left')
+      ? resizer.parentElement.previousElementSibling
+      : resizer.parentElement;
     const table = th.closest('table');
     fixColumnWidths(table);
     const startX = event.clientX;

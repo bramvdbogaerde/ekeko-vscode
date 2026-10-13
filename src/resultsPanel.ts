@@ -22,11 +22,14 @@ export interface QueryResult {
   classDocs?: Record<string, string>;
   // classDocs rendered to HTML, for the webview.
   classDocsHtml?: Record<string, string>;
+  // query rendered to highlighted HTML, for the webview.
+  queryHtml?: string;
 }
 
 export interface QueryError {
   query: string;
   error: string;
+  queryHtml?: string;
 }
 
 // A view docked in the bottom Panel area (contributes.viewsContainers.panel
@@ -78,6 +81,10 @@ export class EkekoResultsViewProvider implements vscode.WebviewViewProvider {
     if ('classDocs' in result && result.classDocs) {
       result = { ...result, classDocsHtml: await renderMarkdown(result.classDocs) };
     }
+    // A Clojure code block, for the renderer to highlight; fenced with more
+    // backticks than a query would contain.
+    const { query } = await renderMarkdown({ query: '````clojure\n' + result.query + '\n````' });
+    result = { ...result, queryHtml: query };
     this.lastResult = result;
     await vscode.commands.executeCommand(`${EkekoResultsViewProvider.viewType}.focus`);
     this.view?.webview.postMessage({ command: 'render', result });
@@ -133,6 +140,7 @@ async function revealCodeCell(uriString: string, startOffset: number, length: nu
 function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'results.js'));
   const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'results.css'));
+  const highlightStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'highlight.css'));
   const nonce = getNonce();
   return `<!DOCTYPE html>
 <html lang="en">
@@ -140,14 +148,22 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <link href="${styleUri}" rel="stylesheet" />
+  <link href="${highlightStyleUri}" rel="stylesheet" />
   <title>Ekeko Results</title>
 </head>
 <body>
-  <div id="toolbar">
-    <label><input type="checkbox" id="show-class-tooltips" checked /> Show class documentation on hover</label>
-    <label><input type="checkbox" id="hide-duplicates" /> Hide duplicate results</label>
+  <div id="header">
+    <div id="status">Run an Ekeko query to see results here.</div>
+    <div id="toolbar">
+      <label><input type="checkbox" id="show-class-tooltips" checked /> Show class documentation on hover</label>
+      <label><input type="checkbox" id="hide-duplicates" /> Hide duplicate results</label>
+    </div>
   </div>
-  <div id="status">Run an Ekeko query to see results here.</div>
+  <details id="query" hidden>
+    <summary>Query</summary>
+    <div id="query-code"></div>
+  </details>
+  <div id="legend" hidden><span class="wrapped-sign">*</span> = unwrapped version of the value is shown</div>
   <div id="table-container"></div>
   <div id="hover" class="hover" hidden></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>

@@ -16,8 +16,9 @@ body {
   overflow: hidden;
 }
 
-#toolbar,
-#status {
+#header,
+#query,
+#legend {
   flex: none;
 }
 
@@ -27,13 +28,26 @@ body {
   overflow: auto;
 }
 
-#toolbar {
-  padding: 8px 12px 0;
+/* The status line on the left and the toggles on the right, or below it
+   (still on the right) when there is no room for both. */
+#header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 8px 12px;
   color: var(--vscode-descriptionForeground);
 }
 
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 16px;
+  margin-left: auto;
+}
+
 #toolbar label {
-  margin-right: 16px;
   white-space: nowrap;
 }
 
@@ -43,8 +57,46 @@ body {
 }
 
 #status {
-  padding: 8px 12px;
+  flex: 1 1 auto;
+}
+
+/* The query, collapsed by default, below the status line. */
+#query {
+  padding: 0 12px 8px;
+}
+
+#query summary {
+  cursor: pointer;
   color: var(--vscode-descriptionForeground);
+}
+
+#query-code pre {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  max-height: 200px;
+  overflow: auto;
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 3px;
+}
+
+/* In the editor's text colour (tokens get theirs from highlight.css), rather
+   than the textPreformat colour VS Code's default webview styles give code. */
+#query-code pre code {
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  background: none;
+  padding: 0;
+}
+
+#legend {
+  padding: 0 12px 8px;
+  color: var(--vscode-descriptionForeground);
+}
+
+#legend[hidden],
+#query[hidden] {
+  display: none;
 }
 
 table {
@@ -75,20 +127,44 @@ th {
   box-shadow: inset 0 -1px 0 var(--vscode-panel-border);
 }
 
-/* The handle on the right edge of a column header for resizing it, see
-   results.js. */
+/* The handles on both sides of the border between two column headers, for
+   resizing the column on its left, see results.js. While hovered or
+   dragged, a handle shows a line along the border. */
 .column-resizer {
   position: absolute;
   top: 0;
-  right: 0;
-  width: 5px;
+  width: 6px;
   height: 100%;
   cursor: col-resize;
   z-index: 1;
 }
 
-.column-resizer:hover,
-.column-resizer.active {
+.column-resizer.right {
+  right: 0;
+}
+
+.column-resizer.left {
+  left: 0;
+}
+
+.column-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+}
+
+.column-resizer.right::after {
+  right: 0;
+}
+
+.column-resizer.left::after {
+  left: 0;
+}
+
+.column-resizer:hover::after,
+.column-resizer.active::after {
   background: var(--vscode-sash-hoverBorder);
 }
 
