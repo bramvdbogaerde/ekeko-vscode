@@ -145,6 +145,7 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 <body>
   <div id="toolbar">
     <label><input type="checkbox" id="show-class-tooltips" checked /> Show class documentation on hover</label>
+    <label><input type="checkbox" id="hide-duplicates" /> Hide duplicate results</label>
   </div>
   <div id="status">Run an Ekeko query to see results here.</div>
   <div id="table-container"></div>

@@ -3,14 +3,16 @@
   const status = document.getElementById('status');
   const container = document.getElementById('table-container');
   const showClassToggle = document.getElementById('show-class-tooltips');
+  const hideDuplicatesToggle = document.getElementById('hide-duplicates');
   const hover = document.getElementById('hover');
 
-  // The last result rendered, to re-render when the toggle changes, and the
-  // toggle's setting, kept in the webview's state so it survives the view
+  // The last result rendered, to re-render when a toggle changes, and the
+  // toggles' settings, kept in the webview's state so they survive the view
   // being hidden and shown again.
   let lastResult = null;
   const state = vscode.getState() || {};
   showClassToggle.checked = state.showClassTooltips !== false;
+  hideDuplicatesToggle.checked = state.hideDuplicates === true;
 
   function escapeHtml(text) {
     return String(text)
@@ -51,7 +53,58 @@
     return '<span class="value-cell">' + escapeHtml(cell.text) + '</span>';
   }
 
+  // Identifies what a cell shows: a code cell by the source range of its
+  // node (two nodes can print the same), any other cell by its text and
+  // class (e.g. the number 1 and the string "1" differ).
+  function cellKey(cell) {
+    if (cell.kind === 'code') {
+      return ['code', cell.uri, cell.startOffset, cell.length];
+    }
+    return [cell.kind, cell.text, cell.className];
+  }
+
+  // The rows without the ones identical to an earlier row.
+  function withoutDuplicates(rows) {
+    const seen = new Set();
+    return rows.filter((row) => {
+      const key = JSON.stringify(row.map(cellKey));
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // The column widths set by resizing (see below) on the table currently
+  // shown, to keep them when the same result is shown again, e.g. when
+  // toggling duplicates; null when the columns have their automatic widths.
+  function resizedColumnWidths() {
+    const table = container.querySelector('table.fixed-columns');
+    if (!table) {
+      return null;
+    }
+    return {
+      table: table.style.width,
+      columns: Array.from(table.querySelectorAll('th'), (th) => th.style.width),
+    };
+  }
+
+  function restoreColumnWidths(widths) {
+    const table = container.querySelector('table');
+    const headers = table.querySelectorAll('th');
+    if (headers.length !== widths.columns.length) {
+      return;
+    }
+    headers.forEach((th, i) => {
+      th.style.width = widths.columns[i];
+    });
+    table.style.width = widths.table;
+    table.classList.add('fixed-columns');
+  }
+
   function render(result) {
+    const widths = result === lastResult ? resizedColumnWidths() : null;
     lastResult = result;
     hideHover();
     if (!result) {
@@ -65,8 +118,13 @@
       return;
     }
     const vars = result.vars || [];
-    const rows = result.rows || [];
+    const allRows = result.rows || [];
+    const rows = hideDuplicatesToggle.checked ? withoutDuplicates(allRows) : allRows;
     let text = rows.length + ' result' + (rows.length === 1 ? '' : 's') + ' for ' + result.query;
+    const hidden = allRows.length - rows.length;
+    if (hidden > 0) {
+      text += ' (' + hidden + ' duplicate' + (hidden === 1 ? '' : 's') + ' hidden)';
+    }
     if (typeof result.elapsedMs === 'number') {
       text += ' (' + result.elapsedMs.toFixed(1) + ' ms)';
     }
@@ -94,6 +152,9 @@
     }
     html += '</tbody></table>';
     container.innerHTML = html;
+    if (widths) {
+      restoreColumnWidths(widths);
+    }
   }
 
   // Resizing a column by dragging the right edge of its header. The first
@@ -162,6 +223,11 @@
     });
   });
 
+  hideDuplicatesToggle.addEventListener('change', () => {
+    vscode.setState({ ...vscode.getState(), hideDuplicates: hideDuplicatesToggle.checked });
+    render(lastResult);
+  });
+
   showClassToggle.addEventListener('change', () => {
     vscode.setState({ ...vscode.getState(), showClassTooltips: showClassToggle.checked });
     hideHover();
@@ -195,8 +261,8 @@
     const below = cellBox.bottom + hoverBox.height <= window.innerHeight;
     const top = below ? cellBox.bottom : Math.max(0, cellBox.top - hoverBox.height);
     const left = Math.max(0, Math.min(cellBox.left, window.innerWidth - hoverBox.width));
-    hover.style.top = top + window.scrollY + 'px';
-    hover.style.left = left + window.scrollX + 'px';
+    hover.style.top = top + 'px';
+    hover.style.left = left + 'px';
   }
 
   function hideHover() {
@@ -236,6 +302,10 @@
       scheduleHide();
     }
   });
+
+  // The hover stays where it was shown, so it would no longer be next to
+  // its cell once the table scrolls.
+  container.addEventListener('scroll', hideHover);
 
   hover.addEventListener('mouseenter', () => clearTimeout(hideTimer));
   hover.addEventListener('mouseleave', scheduleHide);

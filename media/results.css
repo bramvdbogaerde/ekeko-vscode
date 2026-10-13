@@ -1,14 +1,40 @@
+html {
+  height: 100%;
+}
+
+/* Only the table scrolls (in #table-container): the toggles and the status
+   line stay above it, and its header row sticks to the top of it. */
 body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   padding: 0;
   margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#toolbar,
+#status {
+  flex: none;
+}
+
+#table-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 #toolbar {
   padding: 8px 12px 0;
   color: var(--vscode-descriptionForeground);
+}
+
+#toolbar label {
+  margin-right: 16px;
+  white-space: nowrap;
 }
 
 #toolbar input {
@@ -44,6 +70,9 @@ th {
   font-weight: normal;
   text-transform: uppercase;
   font-size: 0.85em;
+  /* The line under the header, drawn as a shadow: with border-collapse, a
+     sticky header cell's border scrolls away with the table. */
+  box-shadow: inset 0 -1px 0 var(--vscode-panel-border);
 }
 
 /* The handle on the right edge of a column header for resizing it, see
