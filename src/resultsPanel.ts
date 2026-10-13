@@ -6,6 +6,8 @@ export interface ResultCell {
   uri?: string;
   startOffset?: number;
   length?: number;
+  // Class of the value shown, for its hover; absent for null.
+  className?: string;
 }
 
 export interface QueryResult {
@@ -14,6 +16,12 @@ export interface QueryResult {
   rows: ResultCell[][];
   elapsedMs?: number;
   count?: number;
+  // Documentation (Markdown) of the classes of the values in rows, by class
+  // name, for the hover over their cells; left out for classes jdt.ls
+  // couldn't find.
+  classDocs?: Record<string, string>;
+  // classDocs rendered to HTML, for the webview.
+  classDocsHtml?: Record<string, string>;
 }
 
 export interface QueryError {
@@ -47,6 +55,8 @@ export class EkekoResultsViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.command === 'reveal') {
         await revealCodeCell(message.uri, message.startOffset, message.length);
+      } else if (message.command === 'openLink') {
+        await openLink(message.href);
       }
     });
     webviewView.onDidDispose(() => {
@@ -65,9 +75,42 @@ export class EkekoResultsViewProvider implements vscode.WebviewViewProvider {
   // renders lastResult itself, so the render below is only redundant (not
   // missed) if that race goes the other way.
   public async reveal(result: QueryResult | QueryError): Promise<void> {
+    if ('classDocs' in result && result.classDocs) {
+      result = { ...result, classDocsHtml: await renderMarkdown(result.classDocs) };
+    }
     this.lastResult = result;
     await vscode.commands.executeCommand(`${EkekoResultsViewProvider.viewType}.focus`);
     this.view?.webview.postMessage({ command: 'render', result });
+  }
+}
+
+// Renders each Markdown text to HTML with VS Code's built-in Markdown
+// renderer (that of its Markdown preview); a text it fails to render is
+// shown as is.
+async function renderMarkdown(texts: Record<string, string>): Promise<Record<string, string>> {
+  const html: Record<string, string> = {};
+  for (const [key, text] of Object.entries(texts)) {
+    try {
+      html[key] = await vscode.commands.executeCommand<string>('markdown.api.render', text);
+    } catch (err) {
+      console.error(`Ekeko: failed to render documentation of ${key}`, err);
+      html[key] = '<pre>' + escapeHtml(text) + '</pre>';
+    }
+  }
+  return html;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Opens a link clicked in a hover, e.g. a jdt:// link to a class in the
+// Javadoc, which redhat.java opens as the class's source.
+async function openLink(href: string): Promise<void> {
+  try {
+    await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(href));
+  } catch (err) {
+    vscode.window.showErrorMessage(`Ekeko: could not open ${href} - ${err}`);
   }
 }
 
@@ -100,8 +143,12 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <title>Ekeko Results</title>
 </head>
 <body>
+  <div id="toolbar">
+    <label><input type="checkbox" id="show-class-tooltips" checked /> Show class documentation on hover</label>
+  </div>
   <div id="status">Run an Ekeko query to see results here.</div>
   <div id="table-container"></div>
+  <div id="hover" class="hover" hidden></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

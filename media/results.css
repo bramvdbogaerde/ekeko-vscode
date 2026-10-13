@@ -6,6 +6,16 @@ body {
   margin: 0;
 }
 
+#toolbar {
+  padding: 8px 12px 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+#toolbar input {
+  vertical-align: middle;
+  margin: 0 4px 0 0;
+}
+
 #status {
   padding: 8px 12px;
   color: var(--vscode-descriptionForeground);
@@ -60,4 +70,66 @@ span.wrapped-sign {
     vertical-align: super;
     font-size: 6pt;
     color: red;
+}
+
+/* The hover over a cell, styled like the editor's hover widget. */
+.hover {
+  position: absolute;
+  z-index: 10;
+  max-width: 500px;
+  max-height: 250px;
+  overflow: auto;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  color: var(--vscode-editorHoverWidget-foreground);
+  background: var(--vscode-editorHoverWidget-background);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  line-height: 1.4;
+}
+
+.hover[hidden] {
+  display: none;
+}
+
+.hover p {
+  margin: 6px 0;
+}
+
+.hover pre {
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
+
+.hover code {
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+}
+
+/* Code blocks (e.g. the signature) in the editor's text colour, rather than
+   the textPreformat colour VS Code's default webview styles give all code;
+   inline code keeps that, as in the editor's hover. */
+.hover pre code {
+  color: var(--vscode-editorHoverWidget-foreground);
+  background: none;
+  padding: 0;
+}
+
+.hover hr {
+  border: none;
+  border-top: 1px solid var(--vscode-editorHoverWidget-border);
+  margin: 6px -8px;
+}
+
+.hover a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.hover a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
 }
