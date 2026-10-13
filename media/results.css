@@ -46,6 +46,41 @@ th {
   font-size: 0.85em;
 }
 
+/* The handle on the right edge of a column header for resizing it, see
+   results.js. */
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.column-resizer:hover,
+.column-resizer.active {
+  background: var(--vscode-sash-hoverBorder);
+}
+
+body.resizing-column {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Once a column has been resized, every column keeps its width and cells
+   that don't fit are cut off. */
+table.fixed-columns {
+  table-layout: fixed;
+}
+
+table.fixed-columns td,
+table.fixed-columns th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 tr:hover td {
   background: var(--vscode-list-hoverBackground);
 }

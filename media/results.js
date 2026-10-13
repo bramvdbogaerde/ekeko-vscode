@@ -82,7 +82,7 @@
 
     let html = '<table><thead><tr>';
     for (const v of vars) {
-      html += '<th>' + escapeHtml(v) + '</th>';
+      html += '<th>' + escapeHtml(v) + '<div class="column-resizer"></div></th>';
     }
     html += '</tr></thead><tbody>';
     for (const row of rows) {
@@ -95,6 +95,58 @@
     html += '</tbody></table>';
     container.innerHTML = html;
   }
+
+  // Resizing a column by dragging the right edge of its header. The first
+  // drag fixes every column at its current width (and the table at their
+  // sum), after which each column keeps the width it is dragged to; the
+  // table can then grow wider than the view, which scrolls horizontally.
+  const MIN_COLUMN_WIDTH = 40;
+
+  function fixColumnWidths(table) {
+    if (table.classList.contains('fixed-columns')) {
+      return;
+    }
+    const headers = table.querySelectorAll('th');
+    const widths = Array.from(headers, (th) => th.getBoundingClientRect().width);
+    headers.forEach((th, i) => {
+      th.style.width = widths[i] + 'px';
+    });
+    table.style.width = widths.reduce((sum, w) => sum + w, 0) + 'px';
+    table.classList.add('fixed-columns');
+  }
+
+  container.addEventListener('mousedown', (event) => {
+    const resizer = event.target.closest('.column-resizer');
+    if (!resizer || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    hideHover();
+    const th = resizer.parentElement;
+    const table = th.closest('table');
+    fixColumnWidths(table);
+    const startX = event.clientX;
+    const startWidth = th.getBoundingClientRect().width;
+    const startTableWidth = table.getBoundingClientRect().width;
+    document.body.classList.add('resizing-column');
+    resizer.classList.add('active');
+
+    function onMove(moveEvent) {
+      const width = Math.max(MIN_COLUMN_WIDTH, startWidth + moveEvent.clientX - startX);
+      th.style.width = width + 'px';
+      table.style.width = startTableWidth + width - startWidth + 'px';
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.classList.remove('resizing-column');
+      resizer.classList.remove('active');
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 
   container.addEventListener('click', (event) => {
     const target = event.target.closest('a.code-cell');
@@ -162,7 +214,7 @@
 
   container.addEventListener('mouseover', (event) => {
     const cell = event.target.closest('td[data-class]');
-    if (!cell || !showClassToggle.checked) {
+    if (!cell || !showClassToggle.checked || document.body.classList.contains('resizing-column')) {
       return;
     }
     clearTimeout(hideTimer);
