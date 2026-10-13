@@ -87,23 +87,20 @@
     if (!table) {
       return null;
     }
-    return {
-      table: table.style.width,
-      columns: Array.from(table.querySelectorAll('th'), (th) => th.style.width),
-    };
+    return Array.from(table.querySelectorAll('th'), (th) => th.dataset.width);
   }
 
   function restoreColumnWidths(widths) {
     const table = container.querySelector('table');
     const headers = table.querySelectorAll('th');
-    if (headers.length !== widths.columns.length) {
+    if (headers.length !== widths.length) {
       return;
     }
     headers.forEach((th, i) => {
-      th.style.width = widths.columns[i];
+      th.dataset.width = widths[i];
     });
-    table.style.width = widths.table;
     table.classList.add('fixed-columns');
+    layoutColumns(table);
   }
 
   // The query of the result, in the collapsible area below the status line,
@@ -174,24 +171,45 @@
     }
   }
 
-  // Resizing a column by dragging the right edge of its header. The first
-  // drag fixes every column at its current width (and the table at their
-  // sum), after which each column keeps the width it is dragged to; the
-  // table can then grow wider than the view, which scrolls horizontally.
+  // Resizing a column by dragging the border on its right. The first drag
+  // fixes every column at its current width, after which each column keeps
+  // the width it is dragged to (in its data-width). The table can then grow
+  // wider than the view, which scrolls horizontally; when the columns
+  // together are narrower than the view, the last one is shown wider, so
+  // the table still fills it.
   const MIN_COLUMN_WIDTH = 40;
 
   function fixColumnWidths(table) {
     if (table.classList.contains('fixed-columns')) {
       return;
     }
-    const headers = table.querySelectorAll('th');
-    const widths = Array.from(headers, (th) => th.getBoundingClientRect().width);
+    table.querySelectorAll('th').forEach((th) => {
+      th.dataset.width = th.getBoundingClientRect().width;
+    });
+    table.classList.add('fixed-columns');
+    layoutColumns(table);
+  }
+
+  // Shows each column at the width it was given, the last one stretched to
+  // fill whatever space the others leave in the view.
+  function layoutColumns(table) {
+    const headers = Array.from(table.querySelectorAll('th'));
+    const widths = headers.map((th) => Number(th.dataset.width));
+    const last = widths.length - 1;
+    const others = widths.slice(0, last).reduce((sum, w) => sum + w, 0);
+    widths[last] = Math.max(widths[last], container.clientWidth - others);
     headers.forEach((th, i) => {
       th.style.width = widths[i] + 'px';
     });
     table.style.width = widths.reduce((sum, w) => sum + w, 0) + 'px';
-    table.classList.add('fixed-columns');
   }
+
+  window.addEventListener('resize', () => {
+    const table = container.querySelector('table.fixed-columns');
+    if (table) {
+      layoutColumns(table);
+    }
+  });
 
   container.addEventListener('mousedown', (event) => {
     const resizer = event.target.closest('.column-resizer');
@@ -206,15 +224,15 @@
     const table = th.closest('table');
     fixColumnWidths(table);
     const startX = event.clientX;
+    // From the width it is shown at: the last column may be shown wider
+    // than it was given.
     const startWidth = th.getBoundingClientRect().width;
-    const startTableWidth = table.getBoundingClientRect().width;
     document.body.classList.add('resizing-column');
     resizer.classList.add('active');
 
     function onMove(moveEvent) {
-      const width = Math.max(MIN_COLUMN_WIDTH, startWidth + moveEvent.clientX - startX);
-      th.style.width = width + 'px';
-      table.style.width = startTableWidth + width - startWidth + 'px';
+      th.dataset.width = Math.max(MIN_COLUMN_WIDTH, startWidth + moveEvent.clientX - startX);
+      layoutColumns(table);
     }
 
     function onUp() {
