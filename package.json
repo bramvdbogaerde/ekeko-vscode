@@ -2,8 +2,12 @@
   "name": "ekeko",
   "displayName": "Ekeko",
   "description": "Query and explore Java code with Ekeko's logic-programming query engine,.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "vdb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bramvdbogaerde/ekeko-vscode.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
